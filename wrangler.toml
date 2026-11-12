@@ -1,0 +1,7 @@
+name = "pace-and-pattern-api"
+main = "worker.js"
+compatibility_date = "2026-11-12"
+
+[vars]
+CORS_ORIGIN = "https://x2023afx.github.io"
+ODDS_REGIONS = "us"
