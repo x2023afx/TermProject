@@ -9,7 +9,7 @@ const STARTUP = {
 
 // Set this to your deployed Cloudflare Worker base URL.
 // Example: "https://pace-and-pattern-api.your-account.workers.dev"
-const API_BASE_URL = "";
+const API_BASE_URL = "https://termproject.x2023afx.workers.dev";
 
 const GAMES = [
   {
