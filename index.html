@@ -3,91 +3,190 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>YourStartup</title>
-  <meta name="description" content="A student startup prototype for BSAD 281.">
+  <meta name="description" content="Explore live sports scores, odds, and observed market movement alongside illustrative historical patterns.">
+  <title>Pace &amp; Pattern — Live game explorer</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
-
-  <!-- =========================================================
-       HEADER: logo text + navigation.
-       Each link points to a "view" further down the page (#home, #explore, #about).
-       ========================================================= -->
   <header class="site-header">
-    <a class="brand" href="#home" id="brand-name">YourStartup</a>
-    <nav aria-label="Main">
-      <a href="#home">Home</a>
-      <a href="#explore">Explore</a>
-      <a href="#about">About</a>
+    <a class="brand" href="#live" aria-label="Pace and Pattern live games">
+      <span class="brand-mark" aria-hidden="true">P</span>
+      <span id="brand-name">Pace &amp; Pattern</span>
+    </a>
+    <nav aria-label="Main navigation">
+      <a href="#live">Live games</a>
+      <a href="#home">Patterns</a>
+      <a href="#how">How it works</a>
     </nav>
+    <span class="data-badge" id="data-badge"><span aria-hidden="true"></span> Checking connection</span>
   </header>
 
   <main>
+    <section id="live" data-view>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Live market board</p>
+          <h1>Follow the game as it happens.</h1>
+          <p class="lead">Live scores and available sportsbook odds, with implied probabilities and observed price changes.</p>
+        </div>
+        <div class="heading-mark" aria-hidden="true">◷</div>
+      </div>
 
-    <!-- =======================================================
-         VIEW 1: HOME — what you do, for whom, and why it matters.
-         ======================================================= -->
+      <section class="filter-panel live-filter" aria-label="Choose a sport and live market">
+        <label>
+          <span class="field-label">Sport</span>
+          <select id="sport-select" disabled>
+            <option>Loading sports…</option>
+          </select>
+        </label>
+        <label>
+          <span class="field-label">Odds market</span>
+          <select id="live-market-select">
+            <option value="h2h">Moneyline</option>
+            <option value="spreads">Spread</option>
+            <option value="totals">Game total</option>
+          </select>
+        </label>
+        <button class="refresh-button" id="refresh-live" type="button">Refresh live data</button>
+      </section>
+
+      <div class="live-status-row">
+        <p id="live-status" role="status" aria-live="polite">Connecting to the live data service…</p>
+        <p id="last-updated"></p>
+      </div>
+      <div id="live-games" class="live-grid" aria-live="polite"></div>
+      <p class="live-empty" id="live-empty" hidden>No games or odds are currently available for this sport.</p>
+      <aside class="responsible-note live-disclaimer">
+        <span class="responsible-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>Odds show market pricing, not a forecast</strong>
+          <p>Implied probabilities are calculated from listed odds and include the bookmaker margin. Arrows compare this refresh with the previous observation in this tab; they do not predict future movement or game outcomes. Live coverage and detailed stats vary by sport and provider.</p>
+        </div>
+      </aside>
+    </section>
+
     <section id="home" data-view>
-      <div class="hero">
-        <p class="eyebrow">Prototype</p>
-        <h1 id="tagline">One sentence that says what your startup does.</h1>
-        <p class="lead" id="pitch">
-          Who is your customer, what problem do they have, and why is your
-          solution better than what they use today?
-        </p>
-        <a class="button" href="#explore">See it in action</a>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Game timing explorer</p>
+          <h1>Patterns, not predictions.</h1>
+          <p class="lead">Compare illustrative historical patterns by matchup, market, and time window.</p>
+        </div>
+        <div class="heading-mark" aria-hidden="true">↗</div>
       </div>
 
+      <section class="filter-panel" aria-label="Choose a game and market">
+        <label>
+          <span class="field-label">Matchup</span>
+          <select id="game-select"></select>
+        </label>
+        <label>
+          <span class="field-label">Market</span>
+          <select id="market-select">
+            <option value="moneyline">Moneyline</option>
+            <option value="spread">Point spread</option>
+            <option value="total">Game total</option>
+          </select>
+        </label>
+        <div class="game-time">
+          <span class="field-label">Scheduled</span>
+          <strong id="game-start"></strong>
+        </div>
+      </section>
+
+      <div class="section-title">
+        <div>
+          <h2>Historical timing signals</h2>
+          <p id="market-context">Past sample results by time before game start</p>
+        </div>
+        <span class="sample-pill">Illustrative sample</span>
+      </div>
+
+      <section class="analysis-grid" aria-label="Historical pattern analysis">
+        <article class="panel chart-panel">
+          <div class="panel-heading">
+            <div>
+              <h3>Pattern by timing window</h3>
+              <p>Historical sample hit rate · not a forecast</p>
+            </div>
+            <span class="chart-legend"><i></i> Sample result</span>
+          </div>
+          <div id="chart" class="chart" role="img" aria-label="Bar chart of historical sample results by timing window"></div>
+          <div class="chart-axis"><span>24 hours before</span><span>Game start</span></div>
+          <p class="chart-note">A higher percentage reflects only how the fictional sample performed. It does not imply future results.</p>
+        </article>
+
+        <aside class="panel signal-panel">
+          <p class="eyebrow">Historical standout</p>
+          <p class="signal-window" id="best-window">—</p>
+          <div class="signal-rate"><strong id="best-rate">—</strong><span>sample hit rate</span></div>
+          <p id="best-note" class="signal-note"></p>
+          <div class="divider"></div>
+          <div class="signal-stat">
+            <span>Historical line movement</span>
+            <strong id="best-move">—</strong>
+          </div>
+          <div class="signal-stat">
+            <span>Examples in sample</span>
+            <strong id="sample-count">—</strong>
+          </div>
+          <p class="signal-disclaimer">This is a descriptive pattern in simulated data, not a recommendation to place a bet.</p>
+        </aside>
+      </section>
+
+      <section class="window-section">
+        <div class="section-title">
+          <div>
+            <h2>Compare windows</h2>
+            <p>Small samples can be noisy; compare counts as well as percentages.</p>
+          </div>
+        </div>
+        <div class="window-grid" id="window-grid"></div>
+      </section>
+
+      <section class="responsible-note">
+        <span class="responsible-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>For research and education only</strong>
+          <p>All teams, matchups, and statistics on this prototype are fictional. Historical patterns cannot predict outcomes. If you choose to gamble, set limits and follow local laws.</p>
+        </div>
+      </section>
+    </section>
+
+    <section id="how" data-view hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">About the prototype</p>
+          <h1>How to read the data.</h1>
+          <p class="lead">Live market pricing, observed movement, and sample patterns are different kinds of information.</p>
+        </div>
+      </div>
       <div class="steps">
-        <div class="card">
-          <h2>1. Step one</h2>
-          <p>Describe the first thing a customer does.</p>
-        </div>
-        <div class="card">
-          <h2>2. Step two</h2>
-          <p>Describe what happens next.</p>
-        </div>
-        <div class="card">
-          <h2>3. Step three</h2>
-          <p>Describe the result the customer gets.</p>
-        </div>
+        <article class="panel step-card">
+          <span class="step-number">01</span>
+          <h2>Follow live markets</h2>
+          <p>Choose a sport to see available scores and current odds. Coverage depends on provider availability.</p>
+        </article>
+        <article class="panel step-card">
+          <span class="step-number">02</span>
+          <h2>Read implied probability</h2>
+          <p>Odds can be converted to an implied probability, but this includes the bookmaker margin and is not the true chance of an outcome.</p>
+        </article>
+        <article class="panel step-card">
+          <span class="step-number">03</span>
+          <h2>Watch observed movement</h2>
+          <p>Changes are shown only between refreshes. Neither recent market movement nor the sample patterns predict what happens next.</p>
+        </article>
       </div>
+      <a class="back-link" href="#home">← Back to dashboard</a>
     </section>
-
-    <!-- =======================================================
-         VIEW 2: EXPLORE — a list built from the fake data in data.js.
-         ======================================================= -->
-    <section id="explore" data-view hidden>
-      <h1>Explore</h1>
-      <p class="muted">These examples are fake. They come from <code>data.js</code>.</p>
-
-      <label class="search">
-        <span>Search</span>
-        <input type="search" id="search-box" placeholder="Type to filter…">
-      </label>
-
-      <p class="muted" id="saved-count"></p>
-      <div class="grid" id="listing-grid"></div>
-      <p class="empty" id="empty-message" hidden>Nothing matches your search.</p>
-    </section>
-
-    <!-- =======================================================
-         VIEW 3: ABOUT — your team and your story.
-         ======================================================= -->
-    <section id="about" data-view hidden>
-      <h1>About us</h1>
-      <p>Tell the story of why your team started this company.</p>
-      <p>Use first names only, or no names at all — this site is public.</p>
-    </section>
-
   </main>
 
-  <!-- Keep this footer. Your site must say it is a student project. -->
   <footer class="site-footer">
-    <p>Student prototype for BSAD 281 at St. Francis Xavier University. Not a real company — all data is fictional.</p>
+    <span>Student prototype for BSAD 281 at St. Francis Xavier University.</span>
+    <span>Market information only · No betting advice</span>
   </footer>
 
-  <!-- Scripts load in this order: data first, then the code that uses it. -->
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>

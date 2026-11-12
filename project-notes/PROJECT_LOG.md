@@ -26,9 +26,9 @@ Copy this block for each session.
 
 ## Things that broke (running list)
 
-| Date | What went wrong | What we tried | What finally fixed it |
-|---|---|---|---|
-| | | | |
+| Date     | What went wrong | What we tried              | What finally fixed it |
+|----------|-----------------|----------------------------|---|
+| 11/12/26 | Simulated Data  | connecting to external lib | |
 
 ## What a real version would need
 

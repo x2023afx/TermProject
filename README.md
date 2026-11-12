@@ -135,10 +135,34 @@ That link is your live site. Every commit updates it automatically within a few 
 |---|---|
 | `index.html` | The structure and text of your site |
 | `styles.css` | How it looks: colours, fonts, spacing |
-| `data.js` | All your fake data (listings, prices, users…) |
-| `app.js` | What the site *does* when people click things |
+| `data.js` | Fictional historical-pattern examples |
+| `app.js` | Browser interactions and live data display |
+| `server.js` | Private-key API proxy and static-file server |
+| `package.json` | Start command and Node.js version requirement |
 | `project-notes/PROJECT_LOG.md` | Your team's record of prompts, problems and decisions |
 | `project-notes/BUSINESS_CASE.md` | The business reasoning behind your prototype |
 | `.github/copilot-instructions.md` | The rules Copilot follows in this project — don't delete it |
 
 What exactly to hand in and how it's graded is in the term project brief on Moodle.
+
+---
+
+## Live scores and odds prototype
+
+The Live games page can request active sports, event scores, and moneyline/spread/total odds from **The Odds API**. Coverage depends on the provider, sport, and region. This integration displays event scores and odds; it does not provide detailed play-by-play or every in-game statistic.
+
+The API key is read only by the local Node server and must never be added to `data.js`, `app.js`, or another public file. You need Node.js 18 or newer and an API key from [The Odds API](https://the-odds-api.com/).
+
+In PowerShell, set the key for the current terminal session and start the server:
+
+```powershell
+$env:THE_ODDS_API_KEY = "your-provider-key"
+$env:ODDS_REGIONS = "us"
+npm start
+```
+
+Then open `http://127.0.0.1:3000`. No additional packages are needed. The key is not saved by these commands; set it again in a new terminal session. Never paste the key into chat or commit it to GitHub.
+
+The odds region defaults to `us`; set `ODDS_REGIONS` to a region supported by your provider account if needed. The API provider may limit requests or charge for usage. The app loads a sport's events when selected and refreshes only when requested, with a short server cache to reduce repeat calls. A deployment needs a Node-capable host with `THE_ODDS_API_KEY` set as a private environment variable; GitHub Pages alone cannot run this backend. Follow the provider's terms and local laws.
+
+Odds-derived probabilities include the bookmaker margin. The movement arrows compare only the current odds with the last observation in the same browser tab; they do not forecast future odds or outcomes. Historical pattern examples elsewhere in the prototype remain fictional.

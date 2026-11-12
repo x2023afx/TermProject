@@ -1,0 +1,12 @@
+{
+  "name": "pace-and-pattern",
+  "version": "1.0.0",
+  "private": true,
+  "description": "A live sports scores and odds research prototype",
+  "scripts": {
+    "start": "node server.js"
+  },
+  "engines": {
+    "node": ">=18"
+  }
+}
