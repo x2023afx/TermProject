@@ -138,6 +138,8 @@ That link is your live site. Every commit updates it automatically within a few 
 | `data.js` | Fictional historical-pattern examples |
 | `app.js` | Browser interactions and live data display |
 | `server.js` | Private-key API proxy and static-file server |
+| `worker.js` | Cloudflare Worker API proxy for the GitHub Pages deployment |
+| `wrangler.toml` | Optional Cloudflare Worker deployment configuration |
 | `package.json` | Start command and Node.js version requirement |
 | `project-notes/PROJECT_LOG.md` | Your team's record of prompts, problems and decisions |
 | `project-notes/BUSINESS_CASE.md` | The business reasoning behind your prototype |
@@ -163,6 +165,20 @@ npm start
 
 Then open `http://127.0.0.1:3000`. No additional packages are needed. The key is not saved by these commands; set it again in a new terminal session. Never paste the key into chat or commit it to GitHub.
 
-The odds region defaults to `us`; set `ODDS_REGIONS` to a region supported by your provider account if needed. The API provider may limit requests or charge for usage. The app loads a sport's events when selected and refreshes only when requested, with a short server cache to reduce repeat calls. A deployment needs a Node-capable host with `THE_ODDS_API_KEY` set as a private environment variable; GitHub Pages alone cannot run this backend. Follow the provider's terms and local laws.
+The odds region defaults to `us`; set `ODDS_REGIONS` to a region supported by your provider account if needed. The API provider may limit requests or charge for usage. The app loads a sport's events when selected and refreshes only when requested, with a short server cache to reduce repeat calls. Follow the provider's terms and local laws.
 
 Odds-derived probabilities include the bookmaker margin. The movement arrows compare only the current odds with the last observation in the same browser tab; they do not forecast future odds or outcomes. Historical pattern examples elsewhere in the prototype remain fictional.
+
+### Publishing live data with GitHub Pages and Cloudflare Workers
+
+GitHub Pages hosts the frontend; Cloudflare Workers securely proxies requests to The Odds API. The provider key is stored as a Worker secret, not in this repository. The repository includes `worker.js` and `wrangler.toml` as the backend.
+
+1. Push the latest repository changes to GitHub.
+2. Sign in at [Cloudflare](https://dash.cloudflare.com/). Open **Workers & Pages** → **Create** → **Create Worker**, then deploy a Worker named `pace-and-pattern-api`. In its code editor, replace the starter code with the contents of `worker.js` and deploy. Cloudflare shows a URL like `https://pace-and-pattern-api.<your-account>.workers.dev`.
+3. In the deployed Worker, open **Settings** → **Variables and Secrets**. Add `THE_ODDS_API_KEY` as a secret using the replacement key from The Odds API, then deploy/save. Do not put the key in GitHub, `data.js`, or chat. If you have not already done so, revoke the API key that was previously shared.
+4. In the Worker settings, add the plain-text variable `CORS_ORIGIN` with value `https://x2023afx.github.io`, and `ODDS_REGIONS` with value `us`; deploy/save the changes.
+5. Test `https://<your-worker-url>/api/status` in a browser. It should return JSON with `"configured":true`.
+6. In `data.js`, set `API_BASE_URL` to the Worker base URL only, e.g. `https://pace-and-pattern-api.<your-account>.workers.dev` (no path or trailing slash). Commit and push the change to the branch used by GitHub Pages.
+7. Refresh `https://x2023afx.github.io/TermProject/`. Confirm that the live sports selector loads; select a sport to fetch its current games.
+
+Use the full Worker code in `worker.js`; `wrangler.toml` is optional deployment configuration for using Wrangler instead of the Cloudflare dashboard. Never paste the provider key into a public file. Free plans and API providers can have usage limits. Add a Cloudflare rate-limiting rule for the Worker to reduce unwanted API usage: CORS restricts browsers, but it does not prevent non-browser clients from making requests to a public endpoint.

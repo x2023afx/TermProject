@@ -7,6 +7,10 @@ const STARTUP = {
   pitch: "Explore simulated historical game patterns by matchup, market, and time before tip-off. This research prototype highlights timing trends; it does not predict outcomes or recommend bets."
 };
 
+// Set this to your deployed Cloudflare Worker base URL.
+// Example: "https://pace-and-pattern-api.your-account.workers.dev"
+const API_BASE_URL = "";
+
 const GAMES = [
   {
     id: "owls-comets",

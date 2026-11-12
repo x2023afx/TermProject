@@ -7,12 +7,17 @@ const PORT = Number(process.env.PORT) || 3000;
 const HOST = process.env.HOST || "127.0.0.1";
 const API_KEY = process.env.THE_ODDS_API_KEY;
 const ODDS_REGIONS = process.env.ODDS_REGIONS || "us";
+const CORS_ORIGINS = (process.env.CORS_ORIGINS || "http://127.0.0.1:3000,http://localhost:3000")
+  .split(",")
+  .map(function (origin) { return origin.trim().replace(/\/+$/, ""); })
+  .filter(Boolean);
 const API_ROOT = "https://api.the-odds-api.com/v4";
 const CACHE_MS = 15000;
 const RATE_WINDOW_MS = 60000;
 const RATE_LIMIT = 20;
 const cache = new Map();
 const requestCounts = new Map();
+const fs = require("node:fs");
 const publicFiles = {
   "/": ["index.html", "text/html; charset=utf-8"],
   "/index.html": ["index.html", "text/html; charset=utf-8"],
@@ -27,6 +32,21 @@ function sendJson(response, status, data) {
     "cache-control": "no-store"
   });
   response.end(JSON.stringify(data));
+}
+
+function setCorsHeaders(request, response) {
+  const origin = request.headers.origin;
+  if (!origin) {
+    return true;
+  }
+  if (!CORS_ORIGINS.includes(origin.replace(/\/+$/, ""))) {
+    return false;
+  }
+  response.setHeader("access-control-allow-origin", origin);
+  response.setHeader("vary", "Origin");
+  response.setHeader("access-control-allow-methods", "GET, OPTIONS");
+  response.setHeader("access-control-allow-headers", "Content-Type");
+  return true;
 }
 
 function providerUrl(endpoint, params) {
@@ -208,7 +228,7 @@ function servePublicFile(requestUrl, response) {
   }
 
   const filename = path.join(__dirname, file[0]);
-  require("node:fs").readFile(filename, function (error, contents) {
+  fs.readFile(filename, function (error, contents) {
     if (error) {
       response.writeHead(500, { "content-type": "text/plain; charset=utf-8" });
       response.end("Could not read the app file.");
@@ -225,6 +245,15 @@ function servePublicFile(requestUrl, response) {
 
 const server = http.createServer(function (request, response) {
   const requestUrl = new URL(request.url, "http://localhost");
+  if (requestUrl.pathname.indexOf("/api/") === 0 && !setCorsHeaders(request, response)) {
+    sendJson(response, 403, { error: "This website is not allowed to use the API." });
+    return;
+  }
+  if (request.method === "OPTIONS" && requestUrl.pathname.indexOf("/api/") === 0) {
+    response.writeHead(204);
+    response.end();
+    return;
+  }
   if (request.method !== "GET") {
     sendJson(response, 405, { error: "Only GET requests are supported." });
     return;

@@ -15,6 +15,36 @@
   const previousOdds = new Map();
   let liveRequestId = 0;
 
+  function apiUrl(path) {
+    return API_BASE_URL.replace(/\/+$/, "") + path;
+  }
+
+  function readApiResponse(response) {
+    return response.text().then(function (body) {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch (error) {
+        if (body.trim().charAt(0) === "<") {
+          throw new Error("The live data server returned a web page instead of API data. Set API_BASE_URL in data.js to your deployed Cloudflare Worker URL, then publish the site again.");
+        }
+        throw new Error("The live data server returned an invalid response. Try again later.");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Live data could not be loaded.");
+      }
+      return data;
+    });
+  }
+
+  function getApiErrorMessage(error) {
+    if (error instanceof TypeError) {
+      return "Could not reach the live data server. Check API_BASE_URL in data.js and confirm the Worker allows this GitHub Pages site in CORS_ORIGIN.";
+    }
+    return error.message || "Live data could not be loaded.";
+  }
+
   document.getElementById("brand-name").textContent = STARTUP.name;
   document.title = STARTUP.name + " — Live game explorer";
 
@@ -236,15 +266,8 @@
       market: liveMarketSelect.value
     });
 
-    fetch("/api/events?" + params.toString())
-      .then(function (response) {
-        return response.json().then(function (data) {
-          if (!response.ok) {
-            throw new Error(data.error || "Live data could not be loaded.");
-          }
-          return data;
-        });
-      })
+    fetch(apiUrl("/api/events?" + params.toString()))
+      .then(readApiResponse)
       .then(function (data) {
         if (requestId !== liveRequestId) {
           return;
@@ -257,7 +280,7 @@
       })
       .catch(function (error) {
         if (requestId === liveRequestId) {
-          setLiveStatus(error.message, false);
+          setLiveStatus(getApiErrorMessage(error), false);
           lastUpdated.textContent = "";
         }
       })
@@ -269,30 +292,14 @@
   }
 
   function initializeLiveData() {
-    fetch("/api/status")
-      .then(function (response) {
-        if (!response.ok) {
-          throw new Error("Live service is not available. Start the app using the local server.");
-        }
-        return response.json();
-      })
+    fetch(apiUrl("/api/status"))
+      .then(readApiResponse)
       .then(function (status) {
         if (!status.configured) {
-          setLiveStatus("Provider key is not configured. Add THE_ODDS_API_KEY to the server environment and restart.", false);
+          setLiveStatus("The Worker does not have the provider key configured. Add THE_ODDS_API_KEY as a Worker secret.", false);
           return null;
         }
-        return fetch("/api/sports");
-      })
-      .then(function (response) {
-        if (!response) {
-          return null;
-        }
-        return response.json().then(function (data) {
-          if (!response.ok) {
-            throw new Error(data.error || "Sports list could not be loaded.");
-          }
-          return data;
-        });
+        return fetch(apiUrl("/api/sports")).then(readApiResponse);
       })
       .then(function (data) {
         if (!data) {
@@ -314,7 +321,7 @@
         fetchLiveEvents();
       })
       .catch(function (error) {
-        setLiveStatus(error.message, false);
+        setLiveStatus(getApiErrorMessage(error), false);
       });
   }
 
