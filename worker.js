@@ -75,9 +75,9 @@ function normalizeEvents(scores, odds) {
   });
 }
 
-async function providerJson(endpoint, params, env) {
+async function providerJson(endpoint, params, apiKey, env) {
   const url = new URL(API_ROOT + endpoint);
-  url.searchParams.set("apiKey", env.THE_ODDS_API_KEY);
+  url.searchParams.set("apiKey", apiKey);
   Object.keys(params).forEach(function (key) {
     url.searchParams.set(key, params[key]);
   });
@@ -89,15 +89,12 @@ async function providerJson(endpoint, params, env) {
   return response.json();
 }
 
-async function handleApi(url, env) {
+async function handleApi(url, env, apiKey) {
   if (url.pathname === "/api/status") {
-    return {
-      body: { provider: "The Odds API", configured: Boolean(env.THE_ODDS_API_KEY) },
-      status: 200
-    };
+    return { body: { provider: "The Odds API", configured: Boolean(apiKey) }, status: 200 };
   }
 
-  if (!env.THE_ODDS_API_KEY) {
+  if (!apiKey) {
     return {
       body: { error: "The server has not configured its sports data provider key." },
       status: 503
@@ -105,7 +102,7 @@ async function handleApi(url, env) {
   }
 
   if (url.pathname === "/api/sports") {
-    const sports = await providerJson("/sports/", {}, env);
+    const sports = await providerJson("/sports/", {}, apiKey, env);
     return {
       body: {
         sports: sports.filter(function (sport) { return sport.active; }).map(function (sport) {
@@ -127,13 +124,13 @@ async function handleApi(url, env) {
     }
 
     const results = await Promise.allSettled([
-      providerJson("/sports/" + sport + "/scores/", { daysFrom: "1" }, env),
+      providerJson("/sports/" + sport + "/scores/", { daysFrom: "1" }, apiKey, env),
       providerJson("/sports/" + sport + "/odds/", {
         regions: env.ODDS_REGIONS || "us",
         markets: market,
         oddsFormat: "american",
         dateFormat: "iso"
-      }, env)
+      }, apiKey, env)
     ]);
 
     if (results[0].status === "rejected" && results[1].status === "rejected") {
@@ -193,7 +190,9 @@ export default {
     }
 
     try {
-      const result = await handleApi(url, env);
+      const apiKey = env.THE_ODDS_API_KEY ||
+        (env.ODDS_KEY_STORE ? await env.ODDS_KEY_STORE.get() : null);
+      const result = await handleApi(url, env, apiKey);
       return jsonResponse(result.body, result.status, origin);
     } catch (error) {
       return jsonResponse({

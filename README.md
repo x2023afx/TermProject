@@ -171,14 +171,14 @@ Odds-derived probabilities include the bookmaker margin. The movement arrows com
 
 ### Publishing live data with GitHub Pages and Cloudflare Workers
 
-GitHub Pages hosts the frontend; Cloudflare Workers securely proxies requests to The Odds API. The provider key is stored as a Worker secret, not in this repository. The repository includes `worker.js` and `wrangler.toml` as the backend.
+GitHub Pages hosts the frontend; Cloudflare Workers securely proxies requests to The Odds API. The provider key is stored in Cloudflare's Secrets Store, not in this repository. The repository includes `worker.js` and `wrangler.toml` as the backend.
 
 1. Push the latest repository changes to GitHub.
-2. Sign in at [Cloudflare](https://dash.cloudflare.com/). Open **Workers & Pages** → **Create** → **Create Worker**, then deploy a Worker named `pace-and-pattern-api`. In its code editor, replace the starter code with the contents of `worker.js` and deploy. Cloudflare shows a URL like `https://pace-and-pattern-api.<your-account>.workers.dev`.
-3. In the deployed Worker, open **Settings** → **Variables and Secrets**. Add `THE_ODDS_API_KEY` as a secret using the replacement key from The Odds API, then deploy/save. Do not put the key in GitHub, `data.js`, or chat. If you have not already done so, revoke the API key that was previously shared.
+2. Sign in at [Cloudflare](https://dash.cloudflare.com/) and open **Secrets Store**. Create an account secret named `THE_ODDS_API_KEY`, enter your replacement provider key, and select the **Workers** permission scope. Do not put the key in GitHub, `data.js`, or chat. If you have not already done so, revoke the API key that was previously shared.
+3. Open **Workers & Pages → termproject → Settings → Bindings → Add → Secrets Store**. Set **Variable name** to `ODDS_KEY_STORE`, select the account secret named `THE_ODDS_API_KEY`, then choose **Deploy** (not “Save version”). The Worker reads this binding with `await env.ODDS_KEY_STORE.get()`.
 4. In the Worker settings, add the plain-text variable `CORS_ORIGIN` with value `https://x2023afx.github.io`, and `ODDS_REGIONS` with value `us`; deploy/save the changes.
-5. Test `https://<your-worker-url>/api/status` in a browser. It should return JSON with `"configured":true`.
-6. In `data.js`, set `API_BASE_URL` to the Worker base URL only, e.g. `https://pace-and-pattern-api.<your-account>.workers.dev` (no path or trailing slash). Commit and push the change to the branch used by GitHub Pages.
+5. Test `https://termproject.x2023afx.workers.dev/api/status` in a browser. It should return JSON with `"configured":true`.
+6. `data.js` already points to `https://termproject.x2023afx.workers.dev`. If that URL changes, set `API_BASE_URL` to the Worker base URL only (no path or trailing slash), then commit and push.
 7. Refresh `https://x2023afx.github.io/TermProject/`. Confirm that the live sports selector loads; select a sport to fetch its current games.
 
 Use the full Worker code in `worker.js`; `wrangler.toml` is optional deployment configuration for using Wrangler instead of the Cloudflare dashboard. Never paste the provider key into a public file. Free plans and API providers can have usage limits. Add a Cloudflare rate-limiting rule for the Worker to reduce unwanted API usage: CORS restricts browsers, but it does not prevent non-browser clients from making requests to a public endpoint.
