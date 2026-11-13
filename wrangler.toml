@@ -1,9 +1,0 @@
-name = 'termproject'
-main = "worker.js"
-compatibility_date = "2026-11-12"
-
-[vars]
-CORS_ORIGIN = "https://x2023afx.github.io"
-SITE_URL = "https://x2023afx.github.io/TermProject"
-ODDS_REGIONS = "us"
-ACCOUNTS_ENABLED = "false"

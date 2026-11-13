@@ -7,9 +7,64 @@ const STARTUP = {
   pitch: "Explore simulated historical game patterns by matchup, market, and time before tip-off. This research prototype highlights timing trends; it does not predict outcomes or recommend bets."
 };
 
-// Set this to your deployed Cloudflare Worker base URL.
-// Example: "https://pace-and-pattern-api.your-account.workers.dev"
-const API_BASE_URL = "https://termproject.x2023afx.workers.dev";
+const DEMO_SPORTS = [
+  { key: "basketball", title: "Basketball (demo)" },
+  { key: "football", title: "Football (demo)" },
+  { key: "soccer", title: "Soccer (demo)" }
+];
+
+const DEMO_EVENTS = [
+  {
+    id: "demo-basketball",
+    sport: "basketball",
+    homeTeam: "Harbor City Owls",
+    awayTeam: "Metro Comets",
+    commenceTime: "2026-11-12T23:30:00Z",
+    inProgress: true,
+    completed: false,
+    scores: [{ name: "Harbor City Owls", score: "68" }, { name: "Metro Comets", score: "64" }],
+    bookmakers: [
+      { title: "Simulated sample", markets: [
+        { key: "h2h", outcomes: [{ name: "Harbor City Owls", price: -125 }, { name: "Metro Comets", price: 105 }] },
+        { key: "spreads", outcomes: [{ name: "Harbor City Owls", price: -110, point: -3.5 }, { name: "Metro Comets", price: -110, point: 3.5 }] },
+        { key: "totals", outcomes: [{ name: "Over", price: -110, point: 221.5 }, { name: "Under", price: -110, point: 221.5 }] }
+      ] }
+    ]
+  },
+  {
+    id: "demo-football",
+    sport: "football",
+    homeTeam: "Northfield Wolves",
+    awayTeam: "Summit Storm",
+    commenceTime: "2026-11-13T00:00:00Z",
+    inProgress: false,
+    completed: false,
+    scores: [],
+    bookmakers: [
+      { title: "Simulated sample", markets: [
+        { key: "h2h", outcomes: [{ name: "Northfield Wolves", price: -135 }, { name: "Summit Storm", price: 115 }] },
+        { key: "spreads", outcomes: [{ name: "Northfield Wolves", price: -110, point: -2.5 }, { name: "Summit Storm", price: -110, point: 2.5 }] },
+        { key: "totals", outcomes: [{ name: "Over", price: -105, point: 44.5 }, { name: "Under", price: -115, point: 44.5 }] }
+      ] }
+    ]
+  },
+  {
+    id: "demo-soccer",
+    sport: "soccer",
+    homeTeam: "Redwood Rovers",
+    awayTeam: "Bay City Athletic",
+    commenceTime: "2026-11-13T01:00:00Z",
+    inProgress: false,
+    completed: false,
+    scores: [],
+    bookmakers: [
+      { title: "Simulated sample", markets: [
+        { key: "h2h", outcomes: [{ name: "Redwood Rovers", price: 120 }, { name: "Draw", price: 220 }, { name: "Bay City Athletic", price: 210 }] },
+        { key: "totals", outcomes: [{ name: "Over", price: -105, point: 2.5 }, { name: "Under", price: -115, point: 2.5 }] }
+      ] }
+    ]
+  }
+];
 
 const GAMES = [
   {

@@ -4,42 +4,40 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Explore live sports scores, odds, and observed market movement alongside illustrative historical patterns.">
-  <title>Pace &amp; Pattern — Live game explorer</title>
+  <meta name="description" content="Explore simulated sports scores, odds, patterns, and a browser-only bet journal.">
+  <title>Pace &amp; Pattern — Sports demo</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#live" aria-label="Pace and Pattern live games">
+    <a class="brand" href="#live" aria-label="Pace and Pattern demo game board">
       <span class="brand-mark" aria-hidden="true">P</span>
       <span id="brand-name">Pace &amp; Pattern</span>
     </a>
     <nav aria-label="Main navigation">
-      <a href="#live">Live games</a>
+      <a href="#live">Game demo</a>
       <a href="#home">Patterns</a>
-      <a href="#account">My account</a>
-      <a href="#how">How it works</a>
+      <a href="#account">Sample journal</a>
+      <a href="#how">About</a>
     </nav>
-    <span class="data-badge" id="data-badge"><span aria-hidden="true"></span> Checking connection</span>
+    <span class="data-badge"><span aria-hidden="true"></span> Demo data only</span>
   </header>
 
   <main>
     <section id="live" data-view>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Live market board</p>
-          <h1>Follow the game as it happens.</h1>
-          <p class="lead">Live scores and available sportsbook odds, with implied probabilities and observed price changes.</p>
+          <p class="eyebrow">Fictional game board</p>
+          <h1>Explore the sample game board.</h1>
+          <p class="lead">Fictional scores and sample odds demonstrate how a live board could look.</p>
         </div>
         <div class="heading-mark" aria-hidden="true">◷</div>
       </div>
 
-      <section class="filter-panel live-filter" aria-label="Choose a sport and live market">
+      <section class="filter-panel live-filter" aria-label="Choose a demo sport and sample market">
         <label>
-          <span class="field-label">Sport</span>
-          <select id="sport-select" disabled>
-            <option>Loading sports…</option>
-          </select>
+          <span class="field-label">Demo sport</span>
+          <select id="sport-select"></select>
         </label>
         <label>
           <span class="field-label">Odds market</span>
@@ -49,25 +47,25 @@
             <option value="totals">Game total</option>
           </select>
         </label>
-        <button class="refresh-button" id="refresh-live" type="button">Refresh live data</button>
+        <button class="refresh-button" id="refresh-live" type="button">Refresh demo board</button>
       </section>
 
       <div class="live-status-row">
-        <p id="live-status" role="status" aria-live="polite">Connecting to the live data service…</p>
+        <p id="live-status" role="status" aria-live="polite">Showing fictional sample data. This is not a live feed.</p>
         <p id="last-updated"></p>
       </div>
       <div id="live-games" class="live-grid" aria-live="polite"></div>
-      <p class="live-empty" id="live-empty" hidden>No games or odds are currently available for this sport.</p>
+      <p class="live-empty" id="live-empty" hidden>No sample games for this sport.</p>
       <aside class="responsible-note live-disclaimer">
         <span class="responsible-icon" aria-hidden="true">i</span>
         <div>
-          <strong>Odds show market pricing, not a forecast</strong>
-          <p>Implied probabilities are calculated from listed odds and include the bookmaker margin. Arrows compare this refresh with the previous observation in this tab; they do not predict future movement or game outcomes. Live coverage and detailed stats vary by sport and provider.</p>
+          <strong>All scores and odds are fictional</strong>
+          <p>This GitHub Pages demo has no live sports connection. Sample implied probabilities are not forecasts, and changes on this board do not reflect a real market.</p>
         </div>
       </aside>
     </section>
 
-    <section id="home" data-view>
+    <section id="home" data-view hidden>
       <div class="page-heading">
         <div>
           <p class="eyebrow">Game timing explorer</p>
@@ -158,112 +156,94 @@
     <section id="account" data-view hidden>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Private bet journal</p>
-          <h1>Your betting history.</h1>
-          <p class="lead">Log bets manually, update their results, and review your recorded totals.</p>
+          <p class="eyebrow">Browser-only demo journal</p>
+          <h1>Your sample bet history.</h1>
+          <p class="lead">Manually record sample bets and review calculated totals on this device.</p>
         </div>
       </div>
 
-      <section id="account-signed-out" class="panel account-panel">
-        <h2>Sign in with email</h2>
-        <p>We’ll email you a one-time sign-in link. No password is stored.</p>
-        <form id="login-form" class="account-login-form">
+      <div class="account-toolbar">
+        <p>Saved only in this browser on this device. No account or email is used.</p>
+        <button type="button" class="text-button danger-text" id="clear-bet-history">Clear sample history</button>
+      </div>
+
+      <div class="account-summary" aria-label="Bet history summary">
+        <article class="panel summary-card">
+          <span>Winning profit</span>
+          <strong id="summary-wins">$0.00</strong>
+        </article>
+        <article class="panel summary-card">
+          <span>Losses (stake)</span>
+          <strong id="summary-losses">$0.00</strong>
+        </article>
+        <article class="panel summary-card">
+          <span>Net result</span>
+          <strong id="summary-net">$0.00</strong>
+        </article>
+        <article class="panel summary-card">
+          <span>Win · loss · push</span>
+          <strong id="summary-record">0 · 0 · 0</strong>
+        </article>
+      </div>
+
+      <section class="panel account-panel">
+        <h2>Log a sample bet</h2>
+        <p>Enter the stake and American odds. You choose the result; nothing is imported or verified.</p>
+        <form id="bet-form" class="bet-form">
           <label>
-            <span class="field-label">Email address</span>
-            <input id="login-email" type="email" autocomplete="email" maxlength="254" required>
+            <span class="field-label">Game or event</span>
+            <input id="bet-event" maxlength="160" required placeholder="e.g. Team A vs Team B">
           </label>
-          <button class="refresh-button" type="submit">Email me a sign-in link</button>
+          <label>
+            <span class="field-label">Market</span>
+            <input id="bet-market" maxlength="160" required placeholder="e.g. Moneyline">
+          </label>
+          <label>
+            <span class="field-label">Selection</span>
+            <input id="bet-selection" maxlength="160" required placeholder="e.g. Team A to win">
+          </label>
+          <label>
+            <span class="field-label">American odds</span>
+            <input id="bet-odds" type="number" min="-100000" max="100000" step="1" required placeholder="-110">
+          </label>
+          <label>
+            <span class="field-label">Stake (USD)</span>
+            <input id="bet-stake" type="number" min="0.01" max="1000000" step="0.01" required placeholder="10.00">
+          </label>
+          <label>
+            <span class="field-label">Result</span>
+            <select id="bet-outcome">
+              <option value="pending">Pending</option>
+              <option value="won">Won</option>
+              <option value="lost">Lost</option>
+              <option value="push">Push / void</option>
+            </select>
+          </label>
+          <label>
+            <span class="field-label">Bet date</span>
+            <input id="bet-date" type="date" required>
+          </label>
+          <button class="refresh-button" type="submit">Save sample bet</button>
         </form>
-        <p id="login-status" class="account-message" role="status" aria-live="polite"></p>
+        <p id="bet-status" class="account-message" role="status" aria-live="polite"></p>
       </section>
 
-      <section id="account-signed-in" hidden>
-        <div class="account-toolbar">
-          <p>Signed in as <strong id="account-email"></strong></p>
-          <div class="account-actions">
-            <button type="button" class="text-button" id="delete-account">Delete account and data</button>
-            <button type="button" class="text-button" id="sign-out">Sign out</button>
+      <section class="account-history">
+        <div class="section-title">
+          <div>
+            <h2>Sample bet history</h2>
+            <p>Totals include settled bets only; pending bets are excluded.</p>
           </div>
         </div>
-
-        <div class="account-summary" aria-label="Bet history summary">
-          <article class="panel summary-card">
-            <span>Winning profit</span>
-            <strong id="summary-wins">$0.00</strong>
-          </article>
-          <article class="panel summary-card">
-            <span>Losses (stake)</span>
-            <strong id="summary-losses">$0.00</strong>
-          </article>
-          <article class="panel summary-card">
-            <span>Net result</span>
-            <strong id="summary-net">$0.00</strong>
-          </article>
-          <article class="panel summary-card">
-            <span>Win · loss · push</span>
-            <strong id="summary-record">0 · 0 · 0</strong>
-          </article>
-        </div>
-
-        <section class="panel account-panel">
-          <h2>Log a bet</h2>
-          <p>Enter the stake and American odds shown on your bet slip. Results and totals are not imported from sportsbooks.</p>
-          <form id="bet-form" class="bet-form">
-            <label>
-              <span class="field-label">Game or event</span>
-              <input id="bet-event" maxlength="160" required placeholder="e.g. Team A vs Team B">
-            </label>
-            <label>
-              <span class="field-label">Market</span>
-              <input id="bet-market" maxlength="160" required placeholder="e.g. Moneyline">
-            </label>
-            <label>
-              <span class="field-label">Selection</span>
-              <input id="bet-selection" maxlength="160" required placeholder="e.g. Team A to win">
-            </label>
-            <label>
-              <span class="field-label">American odds</span>
-              <input id="bet-odds" type="number" min="-100000" max="100000" step="1" required placeholder="-110">
-            </label>
-            <label>
-              <span class="field-label">Stake (USD)</span>
-              <input id="bet-stake" type="number" min="0.01" max="1000000" step="0.01" required placeholder="10.00">
-            </label>
-            <label>
-              <span class="field-label">Result</span>
-              <select id="bet-outcome">
-                <option value="pending">Pending</option>
-                <option value="won">Won</option>
-                <option value="lost">Lost</option>
-                <option value="push">Push / void</option>
-              </select>
-            </label>
-            <label>
-              <span class="field-label">Bet date</span>
-              <input id="bet-date" type="date" required>
-            </label>
-            <button class="refresh-button" type="submit">Save bet</button>
-          </form>
-          <p id="bet-status" class="account-message" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="account-history">
-          <div class="section-title">
-            <div>
-              <h2>Bet history</h2>
-              <p>Totals include settled bets only; pending bets are excluded.</p>
-            </div>
-          </div>
-          <div id="bet-history" class="bet-history"></div>
-          <p id="bet-history-empty" class="live-empty" hidden>No bets logged yet.</p>
-        </section>
+        <div id="bet-history" class="bet-history"></div>
+        <p id="bet-history-empty" class="live-empty" hidden>No sample bets logged yet.</p>
       </section>
 
       <aside class="responsible-note">
         <span class="responsible-icon" aria-hidden="true">i</span>
         <div>
-          <strong>Private account data</strong>
-          <p>Only enter your own records. This journal does not connect to sportsbooks, verify outcomes, or provide betting advice. Account data is stored in the project's Cloudflare database; use it only after the account backend is configured.</p>
+          <strong>Demo only—not a private account</strong>
+          <p>History is stored in this browser only; it is not private from other people using this device, does not sync across devices, and may be erased when browser data is cleared. Do not enter real email, personal information, or real betting history.</p>
         </div>
       </aside>
     </section>
@@ -272,25 +252,25 @@
       <div class="page-heading">
         <div>
           <p class="eyebrow">About the prototype</p>
-          <h1>How to read the data.</h1>
-          <p class="lead">Live market pricing, observed movement, and sample patterns are different kinds of information.</p>
+          <h1>How to read the demo.</h1>
+          <p class="lead">All game board data and history examples are simulated for this static prototype.</p>
         </div>
       </div>
       <div class="steps">
         <article class="panel step-card">
           <span class="step-number">01</span>
-          <h2>Follow live markets</h2>
-          <p>Choose a sport to see available scores and current odds. Coverage depends on provider availability.</p>
+          <h2>Explore sample games</h2>
+          <p>Choose a fictional sport and market to view simulated scores and example odds.</p>
         </article>
         <article class="panel step-card">
           <span class="step-number">02</span>
-          <h2>Read implied probability</h2>
-          <p>Odds can be converted to an implied probability, but this includes the bookmaker margin and is not the true chance of an outcome.</p>
+          <h2>Try the sample journal</h2>
+          <p>Enter fictional sample bets and mark them pending, won, lost, or void. Totals are calculated in your browser.</p>
         </article>
         <article class="panel step-card">
           <span class="step-number">03</span>
-          <h2>Watch observed movement</h2>
-          <p>Changes are shown only between refreshes. Neither recent market movement nor the sample patterns predict what happens next.</p>
+          <h2>Keep it in context</h2>
+          <p>This site has no live sports feed, real account, or sportsbook connection, and it does not predict game outcomes.</p>
         </article>
       </div>
       <a class="back-link" href="#home">← Back to dashboard</a>
