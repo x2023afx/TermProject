@@ -130,7 +130,11 @@ async function providerJson(endpoint, params, apiKey) {
 }
 
 async function sendLoginEmail(email, token, env) {
-  if (!env.RESEND_API_KEY) {
+  let resendApiKey = env.RESEND_API_KEY;
+  if (resendApiKey && typeof resendApiKey.get === "function") {
+    resendApiKey = await resendApiKey.get();
+  }
+  if (typeof resendApiKey !== "string" || !resendApiKey.trim()) {
     throw new Error("Email sign-in is not configured. Add the RESEND_API_KEY Worker secret.");
   }
   const siteUrl = (env.SITE_URL || "https://morgagemypyarlay.pages.dev").replace(/\/+$/, "");
@@ -138,7 +142,7 @@ async function sendLoginEmail(email, token, env) {
   const response = await fetch(RESEND_ROOT, {
     method: "POST",
     headers: {
-      "authorization": "Bearer " + env.RESEND_API_KEY,
+      "authorization": "Bearer " + resendApiKey.trim(),
       "content-type": "application/json"
     },
     body: JSON.stringify({
@@ -153,7 +157,8 @@ async function sendLoginEmail(email, token, env) {
     })
   });
   if (!response.ok) {
-    throw new Error("The email provider could not send the sign-in link. Check its API key and verified sender.");
+    throw new Error("Email provider rejected the sign-in email (HTTP " + response.status +
+      "). Check the Resend API key, sender verification, and recipient restrictions.");
   }
 }
 
