@@ -1,7 +1,8 @@
 "use strict";
 
 const API_ROOT = "https://api.the-odds-api.com/v4";
-const RESEND_ROOT = "https://api.resend.com/emails";
+const GOOGLE_TOKEN_ROOT = "https://oauth2.googleapis.com/token";
+const GMAIL_SEND_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
 const ALLOWED_MARKETS = new Set(["h2h", "spreads", "totals"]);
 const ALLOWED_OUTCOMES = new Set(["pending", "won", "lost", "push"]);
 const SPORT_KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
@@ -9,7 +10,8 @@ const TOKEN_TTL_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 
 function accountsEnabled(env) {
-  return env.ACCOUNTS_ENABLED === "true" && Boolean(env.DB && env.RESEND_API_KEY);
+  return env.ACCOUNTS_ENABLED === "true" &&
+    Boolean(env.DB && env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN);
 }
 
 async function getOddsApiKey(env) {
@@ -129,36 +131,82 @@ async function providerJson(endpoint, params, apiKey) {
   return response.json();
 }
 
-async function sendLoginEmail(email, token, env) {
-  let resendApiKey = env.RESEND_API_KEY;
-  if (resendApiKey && typeof resendApiKey.get === "function") {
-    resendApiKey = await resendApiKey.get();
+async function workerSecret(env, name) {
+  let value = env[name];
+  if (value && typeof value.get === "function") {
+    value = await value.get();
   }
-  if (typeof resendApiKey !== "string" || !resendApiKey.trim()) {
-    throw new Error("Email sign-in is not configured. Add the RESEND_API_KEY Worker secret.");
+  return typeof value === "string" ? value.trim() : "";
+}
+
+function base64UrlEncode(value) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (let i = 0; i < bytes.length; i += 1) {
+    binary += String.fromCharCode(bytes[i]);
   }
-  const siteUrl = (env.SITE_URL || "https://morgagemypyarlay.pages.dev").replace(/\/+$/, "");
-  const link = siteUrl + "/?auth=" + encodeURIComponent(token) + "#account";
-  const response = await fetch(RESEND_ROOT, {
+  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
+}
+
+async function gmailAccessToken(env) {
+  const clientId = await workerSecret(env, "GMAIL_CLIENT_ID");
+  const clientSecret = await workerSecret(env, "GMAIL_CLIENT_SECRET");
+  const refreshToken = await workerSecret(env, "GMAIL_REFRESH_TOKEN");
+  if (!clientId || !clientSecret || !refreshToken) {
+    throw new Error("Gmail sign-in email is not configured. Add the three Gmail OAuth Worker secrets.");
+  }
+
+  const response = await fetch(GOOGLE_TOKEN_ROOT, {
     method: "POST",
-    headers: {
-      "authorization": "Bearer " + resendApiKey.trim(),
-      "content-type": "application/json"
-    },
-    body: JSON.stringify({
-      from: env.EMAIL_FROM || "Pace & Pattern <onboarding@resend.dev>",
-      to: [email],
-      subject: "Your Pace & Pattern sign-in link",
-      text: "Use this link within 15 minutes to sign in to Pace & Pattern:\n\n" + link +
-        "\n\nIf you did not request this, you can ignore this email.",
-      html: "<p>Use this link within 15 minutes to sign in to Pace &amp; Pattern:</p>" +
-        '<p><a href="' + link + '">Sign in</a></p>' +
-        "<p>If you did not request this, you can ignore this email.</p>"
+    headers: { "content-type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      client_id: clientId,
+      client_secret: clientSecret,
+      refresh_token: refreshToken,
+      grant_type: "refresh_token"
     })
   });
   if (!response.ok) {
-    throw new Error("Email provider rejected the sign-in email (HTTP " + response.status +
-      "). Check the Resend API key, sender verification, and recipient restrictions.");
+    const details = await response.text();
+    throw new Error("Google OAuth rejected the Gmail credentials (HTTP " + response.status +
+      "): " + details.slice(0, 300));
+  }
+  const result = await response.json();
+  if (typeof result.access_token !== "string" || !result.access_token) {
+    throw new Error("Google OAuth did not return a Gmail access token.");
+  }
+  return result.access_token;
+}
+
+async function sendLoginEmail(email, token, env) {
+  const accessToken = await gmailAccessToken(env);
+  const siteUrl = (env.SITE_URL || "https://morgagemypyarlay.pages.dev").replace(/\/+$/, "");
+  const link = siteUrl + "/?auth=" + encodeURIComponent(token) + "#account";
+  const message = [
+    "To: " + email,
+    "Subject: Your Pace & Pattern sign-in link",
+    "MIME-Version: 1.0",
+    "Content-Type: text/plain; charset=UTF-8",
+    "Content-Transfer-Encoding: 8bit",
+    "",
+    "Use this link within 15 minutes to sign in to Pace & Pattern:",
+    "",
+    link,
+    "",
+    "If you did not request this, you can ignore this email."
+  ].join("\r\n");
+  const response = await fetch(GMAIL_SEND_ROOT, {
+    method: "POST",
+    headers: {
+      "authorization": "Bearer " + accessToken,
+      "content-type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify({ raw: base64UrlEncode(message) })
+  });
+  if (!response.ok) {
+    const details = await response.text();
+    throw new Error("Gmail rejected the sign-in email (HTTP " + response.status +
+      "): " + details.slice(0, 300));
   }
 }
 
