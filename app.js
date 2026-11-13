@@ -1,7 +1,6 @@
 (function () {
   "use strict";
 
-  const BET_STORAGE_KEY = "pacePatternDemoBets";
   const gameSelect = document.getElementById("game-select");
   const marketSelect = document.getElementById("market-select");
   const chart = document.getElementById("chart");
@@ -9,69 +8,83 @@
   const sportSelect = document.getElementById("sport-select");
   const liveMarketSelect = document.getElementById("live-market-select");
   const liveGames = document.getElementById("live-games");
+  const liveStatus = document.getElementById("live-status");
   const liveEmpty = document.getElementById("live-empty");
-  const betStatus = document.getElementById("bet-status");
-  let bets = [];
-  let betStorageReady = true;
+  const lastUpdated = document.getElementById("last-updated");
+  const dataBadge = document.getElementById("data-badge");
+  const previousOdds = new Map();
+  const accountTokenKey = "pacePatternAccountToken";
+  let liveRequestId = 0;
+  let accountRequestId = 0;
+
+  function apiUrl(path) {
+    return API_BASE_URL.replace(/\/+$/, "") + path;
+  }
+
+  function readApiResponse(response) {
+    return response.text().then(function (body) {
+      let data;
+      try {
+        data = JSON.parse(body);
+      } catch (error) {
+        if (body.trim().charAt(0) === "<") {
+          throw new Error("The live data service returned a web page instead of API data. Check API_BASE_URL in data.js and confirm the Worker is deployed.");
+        }
+        throw new Error("The live data server returned an invalid response. Try again later.");
+      }
+
+      if (!response.ok) {
+        throw new Error(data.error || "Live data could not be loaded.");
+      }
+      return data;
+    });
+  }
+
+  function getApiErrorMessage(error) {
+    if (error instanceof TypeError) {
+      return "Could not reach the live data service. Check the Worker URL and set its CORS_ORIGIN to https://morgagemypyarlay.pages.dev.";
+    }
+    return error.message || "Live data could not be loaded.";
+  }
+
+  function accountRequest(path, token, options) {
+    const requestOptions = options || {};
+    requestOptions.headers = Object.assign({}, requestOptions.headers || {});
+    if (token) {
+      requestOptions.headers.Authorization = "Bearer " + token;
+    }
+    if (requestOptions.body) {
+      requestOptions.headers["Content-Type"] = "application/json";
+    }
+    return fetch(apiUrl(path), requestOptions).then(readApiResponse);
+  }
+
+  function currentSessionToken() {
+    try {
+      return localStorage.getItem(accountTokenKey) || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function saveSessionToken(token) {
+    localStorage.setItem(accountTokenKey, token);
+  }
+
+  function clearSessionToken() {
+    localStorage.removeItem(accountTokenKey);
+  }
+
+  function setAccountSignedIn(signedIn) {
+    document.getElementById("account-signed-out").hidden = signedIn;
+    document.getElementById("account-signed-in").hidden = !signedIn;
+  }
 
   function currency(cents) {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
       currency: "USD"
     }).format(cents / 100);
-  }
-
-  function localDateValue(date) {
-    return [
-      date.getFullYear(),
-      String(date.getMonth() + 1).padStart(2, "0"),
-      String(date.getDate()).padStart(2, "0")
-    ].join("-");
-  }
-
-  function saveBets(nextBets) {
-    if (!betStorageReady) {
-      throw new Error("Journal storage is unavailable. Your changes were not saved.");
-    }
-    try {
-      localStorage.setItem(BET_STORAGE_KEY, JSON.stringify(nextBets));
-    } catch (error) {
-      throw new Error("Could not save to this browser. Check storage settings and try again.");
-    }
-    bets = nextBets;
-    renderBetHistory();
-  }
-
-  function loadBets() {
-    try {
-      const saved = localStorage.getItem(BET_STORAGE_KEY);
-      if (saved === null) {
-        bets = [];
-        return;
-      }
-      const parsed = JSON.parse(saved);
-      if (!Array.isArray(parsed) || !parsed.every(function (bet) {
-        return bet && typeof bet.id === "string" &&
-          typeof bet.eventName === "string" &&
-          typeof bet.market === "string" &&
-          typeof bet.selection === "string" &&
-          Number.isInteger(bet.americanOdds) && bet.americanOdds !== 0 &&
-          Number.isInteger(bet.stakeCents) && bet.stakeCents > 0 &&
-          ["pending", "won", "lost", "push"].indexOf(bet.outcome) !== -1 &&
-          typeof bet.placedAt === "string";
-      })) {
-        throw new Error("Saved journal data is invalid.");
-      }
-      bets = parsed;
-    } catch (error) {
-      betStorageReady = false;
-      betStatus.textContent = error instanceof SyntaxError ||
-        error.message === "Saved journal data is invalid."
-        ? "Saved journal data could not be read. The journal is locked to avoid overwriting it."
-        : "Browser storage is unavailable. Journal changes cannot be saved here.";
-      document.getElementById("bet-form").querySelector("button[type=submit]").disabled = true;
-      document.getElementById("clear-bet-history").disabled = true;
-    }
   }
 
   function betProfitCents(bet) {
@@ -86,7 +99,7 @@
     return 0;
   }
 
-  function renderBetHistory() {
+  function renderBetHistory(bets) {
     const history = document.getElementById("bet-history");
     const empty = document.getElementById("bet-history-empty");
     history.replaceChildren();
@@ -97,7 +110,6 @@
     let winsCount = 0;
     let lossesCount = 0;
     let pushesCount = 0;
-
     bets.forEach(function (bet) {
       if (bet.outcome === "won") {
         winnings += betProfitCents(bet);
@@ -118,7 +130,7 @@
       const meta = document.createElement("p");
       meta.textContent = bet.market + " · " + (bet.americanOdds > 0 ? "+" : "") +
         bet.americanOdds + " odds · " + currency(bet.stakeCents) + " stake · " +
-        new Date(bet.placedAt + "T12:00:00").toLocaleDateString();
+        new Date(bet.placedAt).toLocaleDateString();
       info.append(title, meta);
 
       const controls = document.createElement("div");
@@ -133,8 +145,8 @@
         outcome.appendChild(option);
       });
 
-      const profit = betProfitCents(bet);
       const result = document.createElement("strong");
+      const profit = betProfitCents(bet);
       result.className = "bet-profit" + (profit < 0 ? " is-loss" : "");
       result.textContent = bet.outcome === "pending"
         ? "Pending"
@@ -145,15 +157,14 @@
       update.className = "text-button";
       update.textContent = "Update";
       update.addEventListener("click", function () {
-        const updated = bets.map(function (item) {
-          return item.id === bet.id ? Object.assign({}, item, { outcome: outcome.value }) : item;
+        update.disabled = true;
+        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
+          method: "PATCH",
+          body: JSON.stringify({ outcome: outcome.value })
+        }).then(loadAccount).catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+          update.disabled = false;
         });
-        try {
-          saveBets(updated);
-          betStatus.textContent = "Sample bet updated in this browser.";
-        } catch (error) {
-          betStatus.textContent = error.message;
-        }
       });
 
       const remove = document.createElement("button");
@@ -161,15 +172,14 @@
       remove.className = "text-button danger-text";
       remove.textContent = "Delete";
       remove.addEventListener("click", function () {
-        if (!window.confirm("Delete this sample bet record?")) {
+        if (!window.confirm("Delete this bet record?")) {
           return;
         }
-        try {
-          saveBets(bets.filter(function (item) { return item.id !== bet.id; }));
-          betStatus.textContent = "Sample bet deleted.";
-        } catch (error) {
-          betStatus.textContent = error.message;
-        }
+        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
+          method: "DELETE"
+        }).then(loadAccount).catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+        });
       });
       controls.append(outcome, result, update, remove);
       card.append(info, controls);
@@ -186,67 +196,174 @@
       winsCount + " · " + lossesCount + " · " + pushesCount;
   }
 
+  function loadAccount() {
+    const token = currentSessionToken();
+    const requestId = ++accountRequestId;
+    if (!token) {
+      setAccountSignedIn(false);
+      return Promise.resolve();
+    }
+    return accountRequest("/api/me", token)
+      .then(function (user) {
+        if (requestId !== accountRequestId) {
+          return null;
+        }
+        document.getElementById("account-email").textContent = user.email;
+        setAccountSignedIn(true);
+        return accountRequest("/api/bets", token);
+      })
+      .then(function (data) {
+        if (data && requestId === accountRequestId) {
+          renderBetHistory(data.bets);
+        }
+      })
+      .catch(function (error) {
+        if (requestId === accountRequestId) {
+          if (error.message.indexOf("Sign in") !== -1) {
+            clearSessionToken();
+            setAccountSignedIn(false);
+          }
+          document.getElementById("login-status").textContent = error.message;
+          document.getElementById("bet-status").textContent = error.message;
+        }
+      });
+  }
+
+  function verifyEmailLink() {
+    const pageUrl = new URL(window.location.href);
+    const magicToken = pageUrl.searchParams.get("auth");
+    if (!magicToken) {
+      return Promise.resolve(false);
+    }
+    pageUrl.searchParams.delete("auth");
+    window.history.replaceState(null, "", pageUrl.pathname + "#account");
+    window.location.hash = "account";
+    return accountRequest("/api/auth/verify", "", {
+      method: "POST",
+      body: JSON.stringify({ token: magicToken })
+    }).then(function (session) {
+      saveSessionToken(session.token);
+      document.getElementById("login-status").textContent = "You’re signed in.";
+      return true;
+    }).catch(function (error) {
+      document.getElementById("login-status").textContent = error.message;
+      return true;
+    });
+  }
+
   function initializeAccount() {
-    const dateInput = document.getElementById("bet-date");
-    dateInput.value = localDateValue(new Date());
-    loadBets();
-    renderBetHistory();
+    const localDate = new Date();
+    document.getElementById("bet-date").value = [
+      localDate.getFullYear(),
+      String(localDate.getMonth() + 1).padStart(2, "0"),
+      String(localDate.getDate()).padStart(2, "0")
+    ].join("-");
+
+    document.getElementById("login-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector("button[type=submit]");
+      button.disabled = true;
+      document.getElementById("login-status").textContent = "Sending sign-in link…";
+      accountRequest("/api/auth/request", "", {
+        method: "POST",
+        body: JSON.stringify({ email: document.getElementById("login-email").value })
+      }).then(function (result) {
+        document.getElementById("login-status").textContent = result.message;
+      }).catch(function (error) {
+        document.getElementById("login-status").textContent = error.message;
+      }).then(function () {
+        button.disabled = false;
+      });
+    });
 
     document.getElementById("bet-form").addEventListener("submit", function (event) {
       event.preventDefault();
       const form = event.currentTarget;
-      const odds = Number(document.getElementById("bet-odds").value);
       const stake = Number(document.getElementById("bet-stake").value);
-      const eventName = document.getElementById("bet-event").value.trim();
-      const market = document.getElementById("bet-market").value.trim();
-      const selection = document.getElementById("bet-selection").value.trim();
-      if (!Number.isInteger(odds) || odds === 0 || !Number.isFinite(stake) || stake <= 0) {
-        betStatus.textContent = "Enter non-zero whole-number American odds and a positive stake.";
-        return;
-      }
-      if (!eventName || !market || !selection) {
-        betStatus.textContent = "Enter a game, market, and selection.";
-        return;
-      }
-      const date = dateInput.value;
-      if (!/^\d{4}-\d{2}-\d{2}$/.test(date) || Number.isNaN(new Date(date + "T12:00:00").getTime())) {
-        betStatus.textContent = "Enter a valid bet date.";
-        return;
-      }
-      const nextBets = [{
-        id: window.crypto && window.crypto.randomUUID
-          ? window.crypto.randomUUID()
-          : String(Date.now()) + "-" + Math.random().toString(36).slice(2),
-        eventName: eventName,
-        market: market,
-        selection: selection,
-        americanOdds: odds,
-        stakeCents: Math.round(stake * 100),
-        outcome: document.getElementById("bet-outcome").value,
-        placedAt: date
-      }].concat(bets);
-      try {
-        saveBets(nextBets);
+      const dateParts = document.getElementById("bet-date").value.split("-").map(Number);
+      const placedAt = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).getTime();
+      const button = form.querySelector("button[type=submit]");
+      button.disabled = true;
+      document.getElementById("bet-status").textContent = "Saving bet…";
+      accountRequest("/api/bets", currentSessionToken(), {
+        method: "POST",
+        body: JSON.stringify({
+          eventName: document.getElementById("bet-event").value,
+          market: document.getElementById("bet-market").value,
+          selection: document.getElementById("bet-selection").value,
+          americanOdds: Number(document.getElementById("bet-odds").value),
+          stakeCents: Math.round(stake * 100),
+          outcome: document.getElementById("bet-outcome").value,
+          placedAt: placedAt
+        })
+      }).then(function () {
         form.reset();
-        dateInput.value = localDateValue(new Date());
-        betStatus.textContent = "Sample bet saved in this browser.";
-      } catch (error) {
-        betStatus.textContent = error.message;
-      }
+        document.getElementById("bet-date").value = [
+          new Date().getFullYear(),
+          String(new Date().getMonth() + 1).padStart(2, "0"),
+          String(new Date().getDate()).padStart(2, "0")
+        ].join("-");
+        document.getElementById("bet-status").textContent = "Bet saved.";
+        return loadAccount();
+      }).catch(function (error) {
+        document.getElementById("bet-status").textContent = error.message;
+      }).then(function () {
+        button.disabled = false;
+      });
     });
 
-    document.getElementById("clear-bet-history").addEventListener("click", function () {
-      if (!window.confirm("Clear all sample bet history saved in this browser?")) {
+    document.getElementById("sign-out").addEventListener("click", function () {
+      const token = currentSessionToken();
+      accountRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
+        .catch(function (error) {
+          document.getElementById("login-status").textContent =
+            "Signed out on this device. Server session could not be revoked: " + error.message;
+        })
+        .then(function () {
+          clearSessionToken();
+          setAccountSignedIn(false);
+        });
+    });
+
+    document.getElementById("delete-account").addEventListener("click", function () {
+      if (!window.confirm("Permanently delete your account and all its bet records? This cannot be undone.")) {
         return;
       }
-      try {
-        saveBets([]);
-        betStatus.textContent = "Sample history cleared.";
-      } catch (error) {
-        betStatus.textContent = error.message;
+      accountRequest("/api/account", currentSessionToken(), { method: "DELETE" })
+        .then(function () {
+          clearSessionToken();
+          setAccountSignedIn(false);
+          document.getElementById("login-status").textContent = "Account and bet history deleted.";
+        })
+        .catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+        });
+    });
+
+    verifyEmailLink().then(function () {
+      loadAccount();
+    });
+
+    accountRequest("/api/status", "").then(function (status) {
+      if (!status.accountsConfigured && !currentSessionToken()) {
+        document.getElementById("login-status").textContent =
+          "Email accounts are not set up on the backend yet. Configure the D1 database and Resend email secrets first.";
       }
+    }).catch(function () {
+      document.getElementById("login-status").textContent =
+        "Could not check account setup. Make sure the live data server is available.";
     });
   }
+
+  document.getElementById("brand-name").textContent = STARTUP.name;
+  document.title = STARTUP.name + " — Live game explorer";
+
+  GAMES.forEach(function (game) {
+    const option = document.createElement("option");
+    option.value = game.id;
+    option.textContent = game.away + " at " + game.home;
+    gameSelect.appendChild(option);
+  });
 
   function makeMeter(rate) {
     const meter = document.createElement("div");
@@ -288,20 +405,25 @@
     windows.forEach(function (item) {
       const barRow = document.createElement("div");
       barRow.className = "bar-row" + (item.key === best.key ? " is-best" : "");
+
       const barLabel = document.createElement("span");
       barLabel.className = "bar-label";
       barLabel.textContent = item.label;
+
       const track = document.createElement("div");
       track.className = "bar-track";
       track.appendChild(makeMeter(item.hitRate));
+
       const value = document.createElement("strong");
       value.className = "bar-value";
       value.textContent = item.hitRate + "%";
+
       barRow.append(barLabel, track, value);
       chart.appendChild(barRow);
 
       const card = document.createElement("article");
       card.className = "window-card" + (item.key === best.key ? " is-best" : "");
+
       const title = document.createElement("div");
       title.className = "window-card-heading";
       const label = document.createElement("h3");
@@ -309,13 +431,22 @@
       const rate = document.createElement("strong");
       rate.textContent = item.hitRate + "%";
       title.append(label, rate);
+
+      const meter = makeMeter(item.hitRate);
       const count = document.createElement("p");
       count.className = "window-meta";
       count.textContent = item.samples + " examples · " +
         (item.lineMove === 0 ? "no line movement" : item.lineMove.toFixed(1) + " pts average movement");
-      card.append(title, makeMeter(item.hitRate), count);
+      card.append(title, meter, count);
       windowGrid.appendChild(card);
     });
+  }
+
+  function setLiveStatus(message, connected) {
+    liveStatus.textContent = message;
+    dataBadge.classList.toggle("is-connected", connected);
+    dataBadge.classList.toggle("is-disconnected", !connected);
+    dataBadge.lastChild.textContent = connected ? " Live data" : " Offline";
   }
 
   function formatAmericanOdds(price) {
@@ -324,6 +455,23 @@
 
   function impliedProbability(price) {
     return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100);
+  }
+
+  function getMovement(key, probability) {
+    const previous = previousOdds.get(key);
+    previousOdds.set(key, probability);
+    if (previous === undefined) {
+      return { label: "First observation", direction: "neutral" };
+    }
+
+    const change = (probability - previous) * 100;
+    if (Math.abs(change) < 0.05) {
+      return { label: "No change since refresh", direction: "neutral" };
+    }
+    return {
+      label: (change > 0 ? "↑ " : "↓ ") + Math.abs(change).toFixed(1) + " pp since refresh",
+      direction: change > 0 ? "up" : "down"
+    };
   }
 
   function createOdds(event, marketKey) {
@@ -337,56 +485,62 @@
     if (!market || !market.outcomes.length) {
       const empty = document.createElement("p");
       empty.className = "odds-unavailable";
-      empty.textContent = "No sample odds available for this market.";
+      empty.textContent = "No odds currently available for this market.";
       section.appendChild(empty);
       return section;
     }
 
     const provider = document.createElement("p");
     provider.className = "odds-provider";
-    provider.textContent = "Fictional sample odds";
+    provider.textContent = "Odds from " + bookmaker.title;
     section.appendChild(provider);
 
     market.outcomes.forEach(function (outcome) {
       const probability = impliedProbability(outcome.price);
+      const movement = getMovement(event.id + ":" + marketKey + ":" + outcome.name, probability);
       const row = document.createElement("div");
       row.className = "odds-row";
+
       const name = document.createElement("span");
       name.className = "odds-outcome";
       name.textContent = outcome.name +
         (typeof outcome.point === "number" ? " (" + (outcome.point > 0 ? "+" : "") + outcome.point + ")" : "");
+
       const price = document.createElement("strong");
       price.className = "odds-price";
       price.textContent = formatAmericanOdds(outcome.price);
+
       const chance = document.createElement("span");
       chance.className = "odds-probability";
       chance.textContent = (probability * 100).toFixed(1) + "% implied";
-      const sample = document.createElement("span");
-      sample.className = "odds-trend trend-neutral";
-      sample.textContent = "sample";
-      row.append(name, price, chance, sample);
+
+      const trend = document.createElement("span");
+      trend.className = "odds-trend trend-" + movement.direction;
+      trend.textContent = movement.label;
+
+      row.append(name, price, chance, trend);
       section.appendChild(row);
     });
     return section;
   }
 
-  function renderLiveEvents() {
-    const events = DEMO_EVENTS.filter(function (event) {
-      return event.sport === sportSelect.value;
-    });
+  function renderLiveEvents(events) {
     liveGames.replaceChildren();
     liveEmpty.hidden = events.length !== 0;
     events.forEach(function (event) {
       const card = document.createElement("article");
       card.className = "panel live-card";
+
       const header = document.createElement("div");
       header.className = "live-card-header";
       const status = document.createElement("span");
-      status.className = "event-status";
-      status.textContent = "Demo sample";
+      status.className = "event-status" + (event.inProgress ? " is-live" : "");
+      status.textContent = event.inProgress ? "Live now" : event.completed ? "Final" : "Upcoming";
       const scheduled = document.createElement("span");
       scheduled.className = "event-time";
-      scheduled.textContent = "Fictional matchup";
+      scheduled.textContent = event.inProgress || event.completed
+        ? ""
+        : new Date(event.commenceTime).toLocaleString();
       header.append(status, scheduled);
 
       const matchup = document.createElement("div");
@@ -402,9 +556,85 @@
         teamRow.append(teamName, score);
         matchup.appendChild(teamRow);
       });
-      card.append(header, matchup, createOdds(event, liveMarketSelect.value));
+
+      const odds = createOdds(event, liveMarketSelect.value);
+      card.append(header, matchup, odds);
       liveGames.appendChild(card);
     });
+  }
+
+  function fetchLiveEvents() {
+    if (!sportSelect.value) {
+      return;
+    }
+    const requestId = ++liveRequestId;
+    const refreshButton = document.getElementById("refresh-live");
+    refreshButton.disabled = true;
+    liveStatus.textContent = "Updating scores and odds…";
+    const params = new URLSearchParams({
+      sport: sportSelect.value,
+      market: liveMarketSelect.value
+    });
+
+    fetch(apiUrl("/api/events?" + params.toString()))
+      .then(readApiResponse)
+      .then(function (data) {
+        if (requestId !== liveRequestId) {
+          return;
+        }
+        renderLiveEvents(data.events || []);
+        setLiveStatus(data.warnings && data.warnings.length
+          ? data.warnings.join(" ")
+          : "Showing current provider data. Refresh to check for changes.", true);
+        lastUpdated.textContent = "Updated " + new Date(data.updatedAt).toLocaleTimeString();
+      })
+      .catch(function (error) {
+        if (requestId === liveRequestId) {
+          liveGames.replaceChildren();
+          liveEmpty.hidden = false;
+          setLiveStatus(getApiErrorMessage(error), false);
+          lastUpdated.textContent = "";
+        }
+      })
+      .then(function () {
+        if (requestId === liveRequestId) {
+          refreshButton.disabled = false;
+        }
+      });
+  }
+
+  function initializeLiveData() {
+    fetch(apiUrl("/api/status"))
+      .then(readApiResponse)
+      .then(function (status) {
+        if (!status.configured) {
+          setLiveStatus("The Worker does not have the provider key configured. Add THE_ODDS_API_KEY as a Worker secret.", false);
+          return null;
+        }
+        return fetch(apiUrl("/api/sports")).then(readApiResponse);
+      })
+      .then(function (data) {
+        if (!data) {
+          return;
+        }
+        sportSelect.replaceChildren();
+        data.sports.forEach(function (sport) {
+          const option = document.createElement("option");
+          option.value = sport.key;
+          option.textContent = sport.title;
+          sportSelect.appendChild(option);
+        });
+        sportSelect.disabled = data.sports.length === 0;
+        if (data.sports.length === 0) {
+          setLiveStatus("The provider has no active sports available right now.", true);
+          return;
+        }
+        setLiveStatus("Select a sport and refresh to load current scores and odds.", true);
+        fetchLiveEvents();
+      })
+      .catch(function (error) {
+        setLiveStatus(getApiErrorMessage(error), false);
+      });
   }
 
   function showView() {
@@ -414,6 +644,7 @@
       return view.id === requested;
     });
     const current = exists ? requested : "live";
+
     views.forEach(function (view) {
       view.hidden = view.id !== current;
     });
@@ -425,35 +656,19 @@
       }
     });
     window.scrollTo(0, 0);
+    if (current === "account") {
+      loadAccount();
+    }
   }
-
-  document.getElementById("brand-name").textContent = STARTUP.name;
-  document.title = STARTUP.name + " — Sports demo";
-  GAMES.forEach(function (game) {
-    const option = document.createElement("option");
-    option.value = game.id;
-    option.textContent = game.away + " at " + game.home;
-    gameSelect.appendChild(option);
-  });
-  DEMO_SPORTS.forEach(function (sport) {
-    const option = document.createElement("option");
-    option.value = sport.key;
-    option.textContent = sport.title;
-    sportSelect.appendChild(option);
-  });
 
   gameSelect.addEventListener("change", renderAnalysis);
   marketSelect.addEventListener("change", renderAnalysis);
-  sportSelect.addEventListener("change", renderLiveEvents);
-  liveMarketSelect.addEventListener("change", renderLiveEvents);
-  document.getElementById("refresh-live").addEventListener("click", function () {
-    renderLiveEvents();
-    document.getElementById("live-status").textContent =
-      "Showing fictional sample data. Refreshing does not load a live feed.";
-  });
+  sportSelect.addEventListener("change", fetchLiveEvents);
+  liveMarketSelect.addEventListener("change", fetchLiveEvents);
+  document.getElementById("refresh-live").addEventListener("click", fetchLiveEvents);
   window.addEventListener("hashchange", showView);
   renderAnalysis();
-  renderLiveEvents();
-  initializeAccount();
   showView();
+  initializeLiveData();
+  initializeAccount();
 })();

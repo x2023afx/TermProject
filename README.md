@@ -1,35 +1,40 @@
 # Pace & Pattern
 
-A static, fictional sports-pattern demo for the BSAD 281 term project. It is designed to run directly from GitHub Pages: plain HTML, CSS, and JavaScript with no build step, backend, API key, or external service.
+Pace & Pattern is a static sports-data explorer for the BSAD 281 term project. Its public Cloudflare Pages site requests current sports and odds data from a separate Cloudflare Worker. Email sign-in is optional and is only needed to use the online bet journal. The pages site and Worker must remain publicly reachable; do not put Cloudflare Access in front of either one.
 
-## What the demo includes
+## Features and data
 
-- Fictional sports, game scores, sample odds, and historical-pattern examples.
-- Sample implied probabilities for demonstration only. They are not forecasts.
-- A sample bet journal that saves in the current browser using `localStorage`.
-- Manual result updates and calculated win/loss/net totals.
+- The game board loads active sports, current scores, and available odds through the Worker. Live coverage depends on the provider and sport; unavailable data is reported rather than replaced with sample values.
+- The Patterns section is an illustrative, fictional historical sample. It is not derived from the live feed, a verified historical dataset, or a predictive model.
+- Signed-out visitors can browse the entire site. Users may optionally request a one-time email sign-in link and keep a personal bet journal in the Worker’s Cloudflare D1 database.
+- The journal is manually entered. It does not connect to sportsbooks, import or verify wagers or outcomes, or provide betting advice.
 
-The board is not live and has no connection to sports providers or sportsbooks. Journal entries do not sync between devices, are not verified, and may be deleted when browser data is cleared. The journal is only a prototype; do not enter real personal information or real betting history. All patterns and statistics are fictional and cannot predict outcomes.
+## Public site and Worker deployment
 
-## Publish with GitHub Pages
+The current public site is <https://morgagemypyarlay.pages.dev>. The frontend is plain HTML, CSS, and JavaScript with no build step.
 
-1. Push or commit the project files to your GitHub repository.
-2. On GitHub, open **Settings → Pages**.
-3. Under **Build and deployment**, choose **Deploy from a branch**.
-4. Select the `main` branch and `/ (root)`, then save.
-5. After publishing, open the Pages URL shown in the settings.
+1. Publish the repository root as the Cloudflare Pages site (or connect the repository to Pages with the root directory as the project root). `index.html` is the entry point.
+2. Deploy `worker.js` to the Worker named `pace-pattern-private`. Its API base URL is configured in `data.js` as `https://pace-pattern-private.x2023afx.workers.dev`.
+3. Configure the Worker variables `CORS_ORIGIN=https://morgagemypyarlay.pages.dev` and `SITE_URL=https://morgagemypyarlay.pages.dev`. The Worker only permits the configured site origin for browser requests, and uses `SITE_URL` when generating email callback links.
+4. Configure the Worker’s `THE_ODDS_API_KEY` secret for The Odds API. Do not put provider keys in frontend files or commit them.
+5. To enable the optional account feature, bind the D1 database as `DB`, apply `schema.sql` to it, set `ACCOUNTS_ENABLED=true`, and configure the `RESEND_API_KEY` Worker secret plus a verified `EMAIL_FROM` sender if needed. These are server-side settings; do not add their values to this repository. The account feature requires D1 and email configuration, but the live sports API does not require users to sign in.
+6. Keep the Pages site and Worker public, without Cloudflare Access policies. The Worker’s application routes enforce account authentication; CORS is configured for the public site.
 
-The entry page is `index.html`. Changes appear on the Pages site after they are committed and pushed.
+The frontend checks `/api/status` and displays connection errors when the Worker, provider key, CORS configuration, or upstream sports service is unavailable. Account setup failures only affect signing in and journal access; they should not prevent browsing live sports data.
+
+## Account and journal privacy
+
+Signing in is optional. If you request an email link, your email address is sent to the Worker and its email provider. If you use the journal, your email and bet records are stored in the Worker’s D1 database and associated with your account. Session credentials are kept in this browser’s local storage; sign out on shared devices. The account page provides a control to permanently delete the account and its bet records. Avoid recording information you do not want stored by the service.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Page structure and copy |
-| `styles.css` | Responsive visual styling |
-| `data.js` | Fictional sports, matchups, and historical examples |
-| `app.js` | Browser-only rendering and sample journal |
+| `index.html` | Site structure, navigation, and account forms |
+| `styles.css` | Responsive visual design |
+| `data.js` | Illustrative pattern examples and Worker API URL |
+| `app.js` | Live API requests, account sign-in, and journal UI |
+| `worker.js` | Sports API proxy and optional authenticated account API |
+| `schema.sql` | D1 tables for email sign-in and user bet records |
 | `project-notes/PROJECT_LOG.md` | Team prompts, problems, and decisions |
-| `project-notes/BUSINESS_CASE.md` | Business reasoning for the prototype |
-
-This repository does not deploy or configure Cloudflare services. Any existing Cloudflare account resources are left untouched; this project simply no longer depends on them.
+| `project-notes/BUSINESS_CASE.md` | Business reasoning for the project |
