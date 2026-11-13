@@ -176,7 +176,7 @@ GitHub Pages hosts the frontend; Cloudflare Workers securely proxies requests to
 
 1. Push the latest repository changes to GitHub.
 2. Sign in at [Cloudflare](https://dash.cloudflare.com/) and open **Secrets Store**. Create an account secret named `THE_ODDS_API_KEY`, enter your replacement provider key, and select the **Workers** permission scope. Do not put the key in GitHub, `data.js`, or chat. If you have not already done so, revoke the API key that was previously shared.
-3. Open **Workers & Pages → termproject → Settings → Bindings → Add → Secrets Store**. Set **Variable name** to `ODDS_KEY_STORE`, select the account secret named `THE_ODDS_API_KEY`, then choose **Deploy** (not “Save version”). The Worker reads this binding with `await env.ODDS_KEY_STORE.get()`.
+3. Configure the Odds API key either as a Worker **Secret** named `THE_ODDS_API_KEY`, or as an account-level **Secrets Store** binding named `ODDS_KEY_STORE` that selects the account secret `THE_ODDS_API_KEY`. For the latter, choose **Deploy** (not “Save version”). The Worker supports both binding types.
 4. The current Worker variables are in `wrangler.toml`: `CORS_ORIGIN`, `SITE_URL`, `ODDS_REGIONS`, and `ACCOUNTS_ENABLED`. Keep `ACCOUNTS_ENABLED` set to `false` for the public class site. Push changes to `wrangler.toml` to publish them.
 5. Test `https://termproject.x2023afx.workers.dev/api/status` in a browser. It should return JSON with `"configured":true`.
 6. `data.js` already points to `https://termproject.x2023afx.workers.dev`. If that URL changes, set `API_BASE_URL` to the Worker base URL only (no path or trailing slash), then commit and push.

@@ -12,6 +12,20 @@ function accountsEnabled(env) {
   return env.ACCOUNTS_ENABLED === "true" && Boolean(env.DB && env.RESEND_API_KEY);
 }
 
+async function getOddsApiKey(env) {
+  if (typeof env.THE_ODDS_API_KEY === "string" && env.THE_ODDS_API_KEY.trim()) {
+    return env.THE_ODDS_API_KEY.trim();
+  }
+  if (typeof env.ODDS_KEY_STORE === "string" && env.ODDS_KEY_STORE.trim()) {
+    return env.ODDS_KEY_STORE.trim();
+  }
+  if (env.ODDS_KEY_STORE && typeof env.ODDS_KEY_STORE.get === "function") {
+    const value = await env.ODDS_KEY_STORE.get();
+    return typeof value === "string" && value.trim() ? value.trim() : null;
+  }
+  return null;
+}
+
 function jsonResponse(data, status, origin) {
   const headers = {
     "content-type": "application/json; charset=utf-8",
@@ -203,8 +217,7 @@ function validateBet(body) {
 
 async function handleApi(request, url, env) {
   if (url.pathname === "/api/status" && request.method === "GET") {
-    const oddsKey = env.THE_ODDS_API_KEY ||
-      (env.ODDS_KEY_STORE ? await env.ODDS_KEY_STORE.get() : null);
+    const oddsKey = await getOddsApiKey(env);
     return {
       body: {
         provider: "The Odds API",
@@ -311,8 +324,7 @@ async function handleApi(request, url, env) {
   }
 
   if (url.pathname === "/api/sports" && request.method === "GET") {
-    const apiKey = env.THE_ODDS_API_KEY ||
-      (env.ODDS_KEY_STORE ? await env.ODDS_KEY_STORE.get() : null);
+    const apiKey = await getOddsApiKey(env);
     if (!apiKey) {
       return jsonError("The sports data provider key is not configured.", 503);
     }
@@ -336,8 +348,7 @@ async function handleApi(request, url, env) {
     if (!ALLOWED_MARKETS.has(market)) {
       return jsonError("Choose a supported odds market.", 400);
     }
-    const apiKey = env.THE_ODDS_API_KEY ||
-      (env.ODDS_KEY_STORE ? await env.ODDS_KEY_STORE.get() : null);
+    const apiKey = await getOddsApiKey(env);
     if (!apiKey) {
       return jsonError("The sports data provider key is not configured.", 503);
     }
