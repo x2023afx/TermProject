@@ -75,7 +75,7 @@ Copy one, fill in the blanks, and send it:
 
 ### What Copilot can't do here (on purpose)
 
-Real logins, real databases, real payments, real AI features, emails and texts all need servers, security and paid services. If you ask for them, Copilot will offer to **fake** them instead (for example, a checkout page that shows a pretend confirmation). That's the right answer for a prototype. Add the real version to the *"What a real version would need"* list in your project log — it's part of your grade.
+This public student prototype must not collect real personal information. The optional account and bet-journal code is only for a separate, access-controlled deployment after its database, email provider, secrets, and privacy protections are configured. Keep accounts disabled on the public class site. Real payments and other production features require separate services and security review.
 
 ## Step 5 — Save a checkpoint (commit) every time something works
 
@@ -122,9 +122,9 @@ That link is your live site. Every commit updates it automatically within a few 
 
 ## The rules
 
-- No real personal information about anyone — all data is fake.
+- Do not collect real personal information on the public student prototype.
 - No passwords, API keys or secrets in any file.
-- No real payments, logins or forms that send data anywhere.
+- Keep account sign-in disabled on the public GitHub Pages site; use the account feature only on a separate, access-controlled deployment.
 - No real company logos, brand names or copyrighted characters.
 - Keep the footer saying this is a student prototype.
 - No installs, no outside code libraries, no build tools.
@@ -138,7 +138,8 @@ That link is your live site. Every commit updates it automatically within a few 
 | `data.js` | Fictional historical-pattern examples |
 | `app.js` | Browser interactions and live data display |
 | `server.js` | Private-key API proxy and static-file server |
-| `worker.js` | Cloudflare Worker API proxy for the GitHub Pages deployment |
+| `worker.js` | Cloudflare Worker API, email sign-in, and bet journal endpoints |
+| `schema.sql` | Cloudflare D1 tables for accounts, sessions, and bet records |
 | `wrangler.toml` | Optional Cloudflare Worker deployment configuration |
 | `package.json` | Start command and Node.js version requirement |
 | `project-notes/PROJECT_LOG.md` | Your team's record of prompts, problems and decisions |
@@ -176,9 +177,23 @@ GitHub Pages hosts the frontend; Cloudflare Workers securely proxies requests to
 1. Push the latest repository changes to GitHub.
 2. Sign in at [Cloudflare](https://dash.cloudflare.com/) and open **Secrets Store**. Create an account secret named `THE_ODDS_API_KEY`, enter your replacement provider key, and select the **Workers** permission scope. Do not put the key in GitHub, `data.js`, or chat. If you have not already done so, revoke the API key that was previously shared.
 3. Open **Workers & Pages → termproject → Settings → Bindings → Add → Secrets Store**. Set **Variable name** to `ODDS_KEY_STORE`, select the account secret named `THE_ODDS_API_KEY`, then choose **Deploy** (not “Save version”). The Worker reads this binding with `await env.ODDS_KEY_STORE.get()`.
-4. In the Worker settings, add the plain-text variable `CORS_ORIGIN` with value `https://x2023afx.github.io`, and `ODDS_REGIONS` with value `us`; deploy/save the changes.
+4. The current Worker variables are in `wrangler.toml`: `CORS_ORIGIN`, `SITE_URL`, `ODDS_REGIONS`, and `ACCOUNTS_ENABLED`. Keep `ACCOUNTS_ENABLED` set to `false` for the public class site. Push changes to `wrangler.toml` to publish them.
 5. Test `https://termproject.x2023afx.workers.dev/api/status` in a browser. It should return JSON with `"configured":true`.
 6. `data.js` already points to `https://termproject.x2023afx.workers.dev`. If that URL changes, set `API_BASE_URL` to the Worker base URL only (no path or trailing slash), then commit and push.
 7. Refresh `https://x2023afx.github.io/TermProject/`. Confirm that the live sports selector loads; select a sport to fetch its current games.
 
 Use the full Worker code in `worker.js`; `wrangler.toml` is optional deployment configuration for using Wrangler instead of the Cloudflare dashboard. Never paste the provider key into a public file. Free plans and API providers can have usage limits. Add a Cloudflare rate-limiting rule for the Worker to reduce unwanted API usage: CORS restricts browsers, but it does not prevent non-browser clients from making requests to a public endpoint.
+
+### Email accounts and bet journal
+
+The **My account** page uses email magic links (no passwords), a Cloudflare D1 database, and Resend to send sign-in emails. Bet history is entered manually; odds and bet results are not imported or verified. The Worker calculates settled winnings and losses from the saved stake and American odds.
+
+To enable accounts on the Worker:
+
+1. Deploy this account code to a separate site that is access-controlled for your intended users. Create a D1 database in Cloudflare and use its SQL console to run the full contents of `schema.sql`.
+2. Open **Workers & Pages → termproject → Settings → Bindings**, add the D1 database with variable name `DB`, and deploy the binding.
+3. Create a Resend account and verify a sender domain. Add `RESEND_API_KEY` as a Worker **Secret**. Add `EMAIL_FROM` as a Worker variable using the sender address Resend verified (for example `Pace & Pattern <login@your-domain.example>`). The Resend test sender may only send to the account owner's address; real user sign-in requires a verified sending domain.
+4. In a separate private copy/deployment only, update `ACCOUNTS_ENABLED`, `CORS_ORIGIN`, `SITE_URL`, and `EMAIL_FROM` in `wrangler.toml` for that deployment, and set `API_BASE_URL` in the private frontend to the Worker URL. Protect the frontend with Cloudflare Access or equivalent. Push the config and deploy. Keep `ACCOUNTS_ENABLED = "false"` in this public class repository.
+5. Test `/api/status`; `accountsConfigured` should be `true`. If the D1 or Resend binding is missing, sign-in reports that the account service is not configured.
+
+The frontend is currently published on a public GitHub Pages site and the repository is public. The Worker therefore defaults to accounts disabled (`ACCOUNTS_ENABLED = "false"`). Do not enable accounts on the public class site; use a separate access-controlled deployment with an appropriate privacy notice, retention policy, and review before collecting personal data. The bearer session token is kept in browser local storage. Account deletion removes the user's records; email sends and provider request quotas can still incur limits or costs. Cloudflare D1 and Resend may have free quotas, but email to real users requires a verified sender domain, which may have a separate cost.

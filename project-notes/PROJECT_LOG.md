@@ -26,9 +26,11 @@ Copy this block for each session.
 
 ## Things that broke (running list)
 
-| Date     | What went wrong | What we tried              | What finally fixed it |
-|----------|-----------------|----------------------------|---|
-| 11/12/26 | Simulated Data  | connecting to external lib | |
+| Date     | What went wrong   | What we tried              | What finally fixed it                 |
+|----------|-------------------|----------------------------|---------------------------------------|
+| 11/12/26 | Simulated Data    | connecting to external lib | Used cloudflair to connect to the API |
+| 11/12/26 | Account Creation  |                            |                                       |
+
 
 ## What a real version would need
 

@@ -3,6 +3,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="referrer" content="no-referrer">
   <meta name="description" content="Explore live sports scores, odds, and observed market movement alongside illustrative historical patterns.">
   <title>Pace &amp; Pattern — Live game explorer</title>
   <link rel="stylesheet" href="styles.css">
@@ -16,6 +17,7 @@
     <nav aria-label="Main navigation">
       <a href="#live">Live games</a>
       <a href="#home">Patterns</a>
+      <a href="#account">My account</a>
       <a href="#how">How it works</a>
     </nav>
     <span class="data-badge" id="data-badge"><span aria-hidden="true"></span> Checking connection</span>
@@ -151,6 +153,119 @@
           <p>All teams, matchups, and statistics on this prototype are fictional. Historical patterns cannot predict outcomes. If you choose to gamble, set limits and follow local laws.</p>
         </div>
       </section>
+    </section>
+
+    <section id="account" data-view hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Private bet journal</p>
+          <h1>Your betting history.</h1>
+          <p class="lead">Log bets manually, update their results, and review your recorded totals.</p>
+        </div>
+      </div>
+
+      <section id="account-signed-out" class="panel account-panel">
+        <h2>Sign in with email</h2>
+        <p>We’ll email you a one-time sign-in link. No password is stored.</p>
+        <form id="login-form" class="account-login-form">
+          <label>
+            <span class="field-label">Email address</span>
+            <input id="login-email" type="email" autocomplete="email" maxlength="254" required>
+          </label>
+          <button class="refresh-button" type="submit">Email me a sign-in link</button>
+        </form>
+        <p id="login-status" class="account-message" role="status" aria-live="polite"></p>
+      </section>
+
+      <section id="account-signed-in" hidden>
+        <div class="account-toolbar">
+          <p>Signed in as <strong id="account-email"></strong></p>
+          <div class="account-actions">
+            <button type="button" class="text-button" id="delete-account">Delete account and data</button>
+            <button type="button" class="text-button" id="sign-out">Sign out</button>
+          </div>
+        </div>
+
+        <div class="account-summary" aria-label="Bet history summary">
+          <article class="panel summary-card">
+            <span>Winning profit</span>
+            <strong id="summary-wins">$0.00</strong>
+          </article>
+          <article class="panel summary-card">
+            <span>Losses (stake)</span>
+            <strong id="summary-losses">$0.00</strong>
+          </article>
+          <article class="panel summary-card">
+            <span>Net result</span>
+            <strong id="summary-net">$0.00</strong>
+          </article>
+          <article class="panel summary-card">
+            <span>Win · loss · push</span>
+            <strong id="summary-record">0 · 0 · 0</strong>
+          </article>
+        </div>
+
+        <section class="panel account-panel">
+          <h2>Log a bet</h2>
+          <p>Enter the stake and American odds shown on your bet slip. Results and totals are not imported from sportsbooks.</p>
+          <form id="bet-form" class="bet-form">
+            <label>
+              <span class="field-label">Game or event</span>
+              <input id="bet-event" maxlength="160" required placeholder="e.g. Team A vs Team B">
+            </label>
+            <label>
+              <span class="field-label">Market</span>
+              <input id="bet-market" maxlength="160" required placeholder="e.g. Moneyline">
+            </label>
+            <label>
+              <span class="field-label">Selection</span>
+              <input id="bet-selection" maxlength="160" required placeholder="e.g. Team A to win">
+            </label>
+            <label>
+              <span class="field-label">American odds</span>
+              <input id="bet-odds" type="number" min="-100000" max="100000" step="1" required placeholder="-110">
+            </label>
+            <label>
+              <span class="field-label">Stake (USD)</span>
+              <input id="bet-stake" type="number" min="0.01" max="1000000" step="0.01" required placeholder="10.00">
+            </label>
+            <label>
+              <span class="field-label">Result</span>
+              <select id="bet-outcome">
+                <option value="pending">Pending</option>
+                <option value="won">Won</option>
+                <option value="lost">Lost</option>
+                <option value="push">Push / void</option>
+              </select>
+            </label>
+            <label>
+              <span class="field-label">Bet date</span>
+              <input id="bet-date" type="date" required>
+            </label>
+            <button class="refresh-button" type="submit">Save bet</button>
+          </form>
+          <p id="bet-status" class="account-message" role="status" aria-live="polite"></p>
+        </section>
+
+        <section class="account-history">
+          <div class="section-title">
+            <div>
+              <h2>Bet history</h2>
+              <p>Totals include settled bets only; pending bets are excluded.</p>
+            </div>
+          </div>
+          <div id="bet-history" class="bet-history"></div>
+          <p id="bet-history-empty" class="live-empty" hidden>No bets logged yet.</p>
+        </section>
+      </section>
+
+      <aside class="responsible-note">
+        <span class="responsible-icon" aria-hidden="true">i</span>
+        <div>
+          <strong>Private account data</strong>
+          <p>Only enter your own records. This journal does not connect to sportsbooks, verify outcomes, or provide betting advice. Account data is stored in the project's Cloudflare database; use it only after the account backend is configured.</p>
+        </div>
+      </aside>
     </section>
 
     <section id="how" data-view hidden>

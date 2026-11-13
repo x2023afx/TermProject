@@ -13,7 +13,9 @@
   const lastUpdated = document.getElementById("last-updated");
   const dataBadge = document.getElementById("data-badge");
   const previousOdds = new Map();
+  const accountTokenKey = "pacePatternAccountToken";
   let liveRequestId = 0;
+  let accountRequestId = 0;
 
   function apiUrl(path) {
     return API_BASE_URL.replace(/\/+$/, "") + path;
@@ -43,6 +45,314 @@
       return "Could not reach the live data server. Check API_BASE_URL in data.js and confirm the Worker allows this GitHub Pages site in CORS_ORIGIN.";
     }
     return error.message || "Live data could not be loaded.";
+  }
+
+  function accountRequest(path, token, options) {
+    const requestOptions = options || {};
+    requestOptions.headers = Object.assign({}, requestOptions.headers || {});
+    if (token) {
+      requestOptions.headers.Authorization = "Bearer " + token;
+    }
+    if (requestOptions.body) {
+      requestOptions.headers["Content-Type"] = "application/json";
+    }
+    return fetch(apiUrl(path), requestOptions).then(readApiResponse);
+  }
+
+  function currentSessionToken() {
+    try {
+      return localStorage.getItem(accountTokenKey) || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  function saveSessionToken(token) {
+    localStorage.setItem(accountTokenKey, token);
+  }
+
+  function clearSessionToken() {
+    localStorage.removeItem(accountTokenKey);
+  }
+
+  function setAccountSignedIn(signedIn) {
+    document.getElementById("account-signed-out").hidden = signedIn;
+    document.getElementById("account-signed-in").hidden = !signedIn;
+  }
+
+  function currency(cents) {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: "USD"
+    }).format(cents / 100);
+  }
+
+  function betProfitCents(bet) {
+    if (bet.outcome === "won") {
+      return Math.round(bet.stakeCents * (bet.americanOdds > 0
+        ? bet.americanOdds / 100
+        : 100 / Math.abs(bet.americanOdds)));
+    }
+    if (bet.outcome === "lost") {
+      return -bet.stakeCents;
+    }
+    return 0;
+  }
+
+  function renderBetHistory(bets) {
+    const history = document.getElementById("bet-history");
+    const empty = document.getElementById("bet-history-empty");
+    history.replaceChildren();
+    empty.hidden = bets.length > 0;
+
+    let winnings = 0;
+    let losses = 0;
+    let winsCount = 0;
+    let lossesCount = 0;
+    let pushesCount = 0;
+    bets.forEach(function (bet) {
+      if (bet.outcome === "won") {
+        winnings += betProfitCents(bet);
+        winsCount += 1;
+      } else if (bet.outcome === "lost") {
+        losses += bet.stakeCents;
+        lossesCount += 1;
+      } else if (bet.outcome === "push") {
+        pushesCount += 1;
+      }
+
+      const card = document.createElement("article");
+      card.className = "panel bet-card";
+      const info = document.createElement("div");
+      info.className = "bet-card-info";
+      const title = document.createElement("h3");
+      title.textContent = bet.eventName + " · " + bet.selection;
+      const meta = document.createElement("p");
+      meta.textContent = bet.market + " · " + (bet.americanOdds > 0 ? "+" : "") +
+        bet.americanOdds + " odds · " + currency(bet.stakeCents) + " stake · " +
+        new Date(bet.placedAt).toLocaleDateString();
+      info.append(title, meta);
+
+      const controls = document.createElement("div");
+      controls.className = "bet-card-controls";
+      const outcome = document.createElement("select");
+      outcome.setAttribute("aria-label", "Result for " + bet.eventName + " " + bet.selection);
+      ["pending", "won", "lost", "push"].forEach(function (value) {
+        const option = document.createElement("option");
+        option.value = value;
+        option.textContent = value === "push" ? "Push / void" : value.charAt(0).toUpperCase() + value.slice(1);
+        option.selected = value === bet.outcome;
+        outcome.appendChild(option);
+      });
+
+      const result = document.createElement("strong");
+      const profit = betProfitCents(bet);
+      result.className = "bet-profit" + (profit < 0 ? " is-loss" : "");
+      result.textContent = bet.outcome === "pending"
+        ? "Pending"
+        : bet.outcome === "push" ? "—" : (profit > 0 ? "+" : "") + currency(profit);
+
+      const update = document.createElement("button");
+      update.type = "button";
+      update.className = "text-button";
+      update.textContent = "Update";
+      update.addEventListener("click", function () {
+        update.disabled = true;
+        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
+          method: "PATCH",
+          body: JSON.stringify({ outcome: outcome.value })
+        }).then(loadAccount).catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+          update.disabled = false;
+        });
+      });
+
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "text-button danger-text";
+      remove.textContent = "Delete";
+      remove.addEventListener("click", function () {
+        if (!window.confirm("Delete this bet record?")) {
+          return;
+        }
+        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
+          method: "DELETE"
+        }).then(loadAccount).catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+        });
+      });
+      controls.append(outcome, result, update, remove);
+      card.append(info, controls);
+      history.appendChild(card);
+    });
+
+    document.getElementById("summary-wins").textContent = currency(winnings);
+    document.getElementById("summary-losses").textContent = currency(losses);
+    const net = winnings - losses;
+    const netElement = document.getElementById("summary-net");
+    netElement.textContent = (net > 0 ? "+" : "") + currency(net);
+    netElement.classList.toggle("is-loss", net < 0);
+    document.getElementById("summary-record").textContent =
+      winsCount + " · " + lossesCount + " · " + pushesCount;
+  }
+
+  function loadAccount() {
+    const token = currentSessionToken();
+    const requestId = ++accountRequestId;
+    if (!token) {
+      setAccountSignedIn(false);
+      return Promise.resolve();
+    }
+    return accountRequest("/api/me", token)
+      .then(function (user) {
+        if (requestId !== accountRequestId) {
+          return null;
+        }
+        document.getElementById("account-email").textContent = user.email;
+        setAccountSignedIn(true);
+        return accountRequest("/api/bets", token);
+      })
+      .then(function (data) {
+        if (data && requestId === accountRequestId) {
+          renderBetHistory(data.bets);
+        }
+      })
+      .catch(function (error) {
+        if (requestId === accountRequestId) {
+          if (error.message.indexOf("Sign in") !== -1) {
+            clearSessionToken();
+            setAccountSignedIn(false);
+          }
+          document.getElementById("login-status").textContent = error.message;
+          document.getElementById("bet-status").textContent = error.message;
+        }
+      });
+  }
+
+  function verifyEmailLink() {
+    const pageUrl = new URL(window.location.href);
+    const magicToken = pageUrl.searchParams.get("auth");
+    if (!magicToken) {
+      return Promise.resolve(false);
+    }
+    pageUrl.searchParams.delete("auth");
+    window.history.replaceState(null, "", pageUrl.pathname + "#account");
+    window.location.hash = "account";
+    return accountRequest("/api/auth/verify", "", {
+      method: "POST",
+      body: JSON.stringify({ token: magicToken })
+    }).then(function (session) {
+      saveSessionToken(session.token);
+      document.getElementById("login-status").textContent = "You’re signed in.";
+      return true;
+    }).catch(function (error) {
+      document.getElementById("login-status").textContent = error.message;
+      return true;
+    });
+  }
+
+  function initializeAccount() {
+    const localDate = new Date();
+    document.getElementById("bet-date").value = [
+      localDate.getFullYear(),
+      String(localDate.getMonth() + 1).padStart(2, "0"),
+      String(localDate.getDate()).padStart(2, "0")
+    ].join("-");
+
+    document.getElementById("login-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      const button = event.currentTarget.querySelector("button[type=submit]");
+      button.disabled = true;
+      document.getElementById("login-status").textContent = "Sending sign-in link…";
+      accountRequest("/api/auth/request", "", {
+        method: "POST",
+        body: JSON.stringify({ email: document.getElementById("login-email").value })
+      }).then(function (result) {
+        document.getElementById("login-status").textContent = result.message;
+      }).catch(function (error) {
+        document.getElementById("login-status").textContent = error.message;
+      }).then(function () {
+        button.disabled = false;
+      });
+    });
+
+    document.getElementById("bet-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      const form = event.currentTarget;
+      const stake = Number(document.getElementById("bet-stake").value);
+      const dateParts = document.getElementById("bet-date").value.split("-").map(Number);
+      const placedAt = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).getTime();
+      const button = form.querySelector("button[type=submit]");
+      button.disabled = true;
+      document.getElementById("bet-status").textContent = "Saving bet…";
+      accountRequest("/api/bets", currentSessionToken(), {
+        method: "POST",
+        body: JSON.stringify({
+          eventName: document.getElementById("bet-event").value,
+          market: document.getElementById("bet-market").value,
+          selection: document.getElementById("bet-selection").value,
+          americanOdds: Number(document.getElementById("bet-odds").value),
+          stakeCents: Math.round(stake * 100),
+          outcome: document.getElementById("bet-outcome").value,
+          placedAt: placedAt
+        })
+      }).then(function () {
+        form.reset();
+        document.getElementById("bet-date").value = [
+          new Date().getFullYear(),
+          String(new Date().getMonth() + 1).padStart(2, "0"),
+          String(new Date().getDate()).padStart(2, "0")
+        ].join("-");
+        document.getElementById("bet-status").textContent = "Bet saved.";
+        return loadAccount();
+      }).catch(function (error) {
+        document.getElementById("bet-status").textContent = error.message;
+      }).then(function () {
+        button.disabled = false;
+      });
+    });
+
+    document.getElementById("sign-out").addEventListener("click", function () {
+      const token = currentSessionToken();
+      accountRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
+        .catch(function (error) {
+          document.getElementById("login-status").textContent =
+            "Signed out on this device. Server session could not be revoked: " + error.message;
+        })
+        .then(function () {
+          clearSessionToken();
+          setAccountSignedIn(false);
+        });
+    });
+
+    document.getElementById("delete-account").addEventListener("click", function () {
+      if (!window.confirm("Permanently delete your account and all its bet records? This cannot be undone.")) {
+        return;
+      }
+      accountRequest("/api/account", currentSessionToken(), { method: "DELETE" })
+        .then(function () {
+          clearSessionToken();
+          setAccountSignedIn(false);
+          document.getElementById("login-status").textContent = "Account and bet history deleted.";
+        })
+        .catch(function (error) {
+          document.getElementById("bet-status").textContent = error.message;
+        });
+    });
+
+    verifyEmailLink().then(function () {
+      loadAccount();
+    });
+
+    accountRequest("/api/status", "").then(function (status) {
+      if (!status.accountsConfigured && !currentSessionToken()) {
+        document.getElementById("login-status").textContent =
+          "Email accounts are not set up on the backend yet. Configure the D1 database and Resend email secrets first.";
+      }
+    }).catch(function () {
+      document.getElementById("login-status").textContent =
+        "Could not check account setup. Make sure the live data server is available.";
+    });
   }
 
   document.getElementById("brand-name").textContent = STARTUP.name;
@@ -344,6 +654,9 @@
       }
     });
     window.scrollTo(0, 0);
+    if (current === "account") {
+      loadAccount();
+    }
   }
 
   gameSelect.addEventListener("change", renderAnalysis);
@@ -355,4 +668,5 @@
   renderAnalysis();
   showView();
   initializeLiveData();
+  initializeAccount();
 })();
