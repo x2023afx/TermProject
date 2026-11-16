@@ -381,8 +381,10 @@ async function handleApi(request, url, env) {
     const userId = crypto.randomUUID();
     const inserted = await env.DB.prepare(
       "INSERT INTO users (id, email, username, password_salt, password_hash, password_iterations, created_at) " +
-      "VALUES (?, NULL, ?, ?, ?, ?, ?) ON CONFLICT(username) DO NOTHING"
-    ).bind(userId, username, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+      "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(username) DO NOTHING"
+    ).bind(
+      userId, userId + "@username.invalid", username, salt, passwordHash, PASSWORD_ITERATIONS, now
+    ).run();
     if (!inserted.meta || inserted.meta.changes !== 1) {
       return jsonError("That username is already taken.", 409);
     }
