@@ -208,7 +208,7 @@
         if (requestId !== accountRequestId) {
           return null;
         }
-        document.getElementById("account-email").textContent = user.email;
+        document.getElementById("account-username").textContent = user.username || user.email;
         setAccountSignedIn(true);
         return accountRequest("/api/bets", token);
       })
@@ -261,20 +261,41 @@
 
     document.getElementById("login-form").addEventListener("submit", function (event) {
       event.preventDefault();
-      const button = event.currentTarget.querySelector("button[type=submit]");
+      submitCredentials("/api/auth/login", event.currentTarget.querySelector("button[type=submit]"));
+    });
+
+    document.getElementById("create-account").addEventListener("click", function (event) {
+      submitCredentials("/api/auth/register", event.currentTarget);
+    });
+
+    function submitCredentials(path, button) {
+      const usernameInput = document.getElementById("login-username");
+      const passwordInput = document.getElementById("login-password");
+      if (!usernameInput.reportValidity() || !passwordInput.reportValidity()) {
+        return;
+      }
+      passwordInput.autocomplete = path.endsWith("/register") ? "new-password" : "current-password";
       button.disabled = true;
-      document.getElementById("login-status").textContent = "Sending sign-in link…";
-      accountRequest("/api/auth/request", "", {
+      document.getElementById("login-status").textContent =
+        path.endsWith("/register") ? "Creating account…" : "Signing in…";
+      accountRequest(path, "", {
         method: "POST",
-        body: JSON.stringify({ email: document.getElementById("login-email").value })
-      }).then(function (result) {
-        document.getElementById("login-status").textContent = result.message;
+        body: JSON.stringify({
+          username: usernameInput.value,
+          password: passwordInput.value
+        })
+      }).then(function (session) {
+        saveSessionToken(session.token);
+        passwordInput.value = "";
+        document.getElementById("login-status").textContent = "You’re signed in.";
+        setAccountSignedIn(true);
+        return loadAccount();
       }).catch(function (error) {
         document.getElementById("login-status").textContent = error.message;
       }).then(function () {
         button.disabled = false;
       });
-    });
+    }
 
     document.getElementById("bet-form").addEventListener("submit", function (event) {
       event.preventDefault();
@@ -347,7 +368,7 @@
     accountRequest("/api/status", "").then(function (status) {
       if (!status.accountsConfigured && !currentSessionToken()) {
         document.getElementById("login-status").textContent =
-          "Email accounts are not set up on the backend yet. Configure the D1 database and Resend email secrets first.";
+          "Username accounts are not set up on the backend yet. Configure the D1 database and enable accounts on the Worker.";
       }
     }).catch(function () {
       document.getElementById("login-status").textContent =

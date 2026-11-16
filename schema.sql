@@ -1,7 +1,16 @@
 CREATE TABLE IF NOT EXISTS users (
   id TEXT PRIMARY KEY,
-  email TEXT NOT NULL UNIQUE,
-  created_at INTEGER NOT NULL
+  email TEXT UNIQUE,
+  username TEXT UNIQUE,
+  password_salt TEXT,
+  password_hash TEXT,
+  password_iterations INTEGER,
+  created_at INTEGER NOT NULL,
+  CHECK (email IS NOT NULL OR username IS NOT NULL),
+  CHECK (
+    (password_salt IS NULL AND password_hash IS NULL AND password_iterations IS NULL) OR
+    (username IS NOT NULL AND password_salt IS NOT NULL AND password_hash IS NOT NULL AND password_iterations IS NOT NULL)
+  )
 );
 
 CREATE TABLE IF NOT EXISTS login_tokens (

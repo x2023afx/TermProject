@@ -1,17 +1,22 @@
 "use strict";
 
 const API_ROOT = "https://api.the-odds-api.com/v4";
-const GOOGLE_TOKEN_ROOT = "https://oauth2.googleapis.com/token";
-const GMAIL_SEND_ROOT = "https://gmail.googleapis.com/gmail/v1/users/me/messages/send";
+const RESEND_SEND_ROOT = "https://api.resend.com/emails";
 const ALLOWED_MARKETS = new Set(["h2h", "spreads", "totals"]);
 const ALLOWED_OUTCOMES = new Set(["pending", "won", "lost", "push"]);
 const SPORT_KEY_PATTERN = /^[a-zA-Z0-9_-]+$/;
 const TOKEN_TTL_MS = 15 * 60 * 1000;
 const SESSION_TTL_MS = 30 * 24 * 60 * 60 * 1000;
+const PASSWORD_ITERATIONS = 600000;
+const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
 
 function accountsEnabled(env) {
   return env.ACCOUNTS_ENABLED === "true" &&
-    Boolean(env.DB && env.GMAIL_CLIENT_ID && env.GMAIL_CLIENT_SECRET && env.GMAIL_REFRESH_TOKEN);
+    Boolean(env.DB);
+}
+
+function emailSignInEnabled(env) {
+  return accountsEnabled(env) && Boolean(env.RESEND_API_KEY && env.RESEND_FROM_EMAIL);
 }
 
 async function getOddsApiKey(env) {
@@ -60,6 +65,54 @@ async function hashValue(value) {
   return Array.from(new Uint8Array(digest), function (byte) {
     return byte.toString(16).padStart(2, "0");
   }).join("");
+}
+
+function bytesToHex(bytes) {
+  return Array.from(bytes, function (byte) {
+    return byte.toString(16).padStart(2, "0");
+  }).join("");
+}
+
+function hexToBytes(value) {
+  const bytes = new Uint8Array(value.length / 2);
+  for (let i = 0; i < bytes.length; i += 1) {
+    bytes[i] = parseInt(value.slice(i * 2, i * 2 + 2), 16);
+  }
+  return bytes;
+}
+
+async function hashPassword(password, salt, iterations) {
+  const key = await crypto.subtle.importKey(
+    "raw",
+    new TextEncoder().encode(password),
+    "PBKDF2",
+    false,
+    ["deriveBits"]
+  );
+  const bits = await crypto.subtle.deriveBits({
+    name: "PBKDF2",
+    hash: "SHA-256",
+    salt: hexToBytes(salt),
+    iterations: iterations
+  }, key, 256);
+  return bytesToHex(new Uint8Array(bits));
+}
+
+function equalHexValues(left, right) {
+  let difference = left.length ^ right.length;
+  const length = Math.max(left.length, right.length);
+  for (let i = 0; i < length; i += 1) {
+    difference |= (left.charCodeAt(i) || 0) ^ (right.charCodeAt(i) || 0);
+  }
+  return difference === 0;
+}
+
+function validUsername(value) {
+  return typeof value === "string" && /^[a-zA-Z0-9_]{3,32}$/.test(value);
+}
+
+function validPassword(value) {
+  return typeof value === "string" && value.length >= 12 && value.length <= 128;
 }
 
 function normalizeEvents(scores, odds) {
@@ -139,73 +192,36 @@ async function workerSecret(env, name) {
   return typeof value === "string" ? value.trim() : "";
 }
 
-function base64UrlEncode(value) {
-  const bytes = new TextEncoder().encode(value);
-  let binary = "";
-  for (let i = 0; i < bytes.length; i += 1) {
-    binary += String.fromCharCode(bytes[i]);
+async function sendLoginEmail(email, token, env) {
+  const apiKey = await workerSecret(env, "RESEND_API_KEY");
+  const from = await workerSecret(env, "RESEND_FROM_EMAIL");
+  if (!apiKey || !from) {
+    throw new Error("Resend email is not configured. Set RESEND_API_KEY and RESEND_FROM_EMAIL.");
   }
-  return btoa(binary).replace(/\+/g, "-").replace(/\//g, "_").replace(/=+$/, "");
-}
-
-async function gmailAccessToken(env) {
-  const clientId = await workerSecret(env, "GMAIL_CLIENT_ID");
-  const clientSecret = await workerSecret(env, "GMAIL_CLIENT_SECRET");
-  const refreshToken = await workerSecret(env, "GMAIL_REFRESH_TOKEN");
-  if (!clientId || !clientSecret || !refreshToken) {
-    throw new Error("Gmail sign-in email is not configured. Add the three Gmail OAuth Worker secrets.");
-  }
-
-  const response = await fetch(GOOGLE_TOKEN_ROOT, {
+  const siteUrl = (env.SITE_URL || "https://morgagemypyarlay.pages.dev").replace(/\/+$/, "");
+  const link = siteUrl + "/?auth=" + encodeURIComponent(token) + "#account";
+  const response = await fetch(RESEND_SEND_ROOT, {
     method: "POST",
-    headers: { "content-type": "application/x-www-form-urlencoded" },
-    body: new URLSearchParams({
-      client_id: clientId,
-      client_secret: clientSecret,
-      refresh_token: refreshToken,
-      grant_type: "refresh_token"
+    headers: {
+      "authorization": "Bearer " + apiKey,
+      "content-type": "application/json; charset=utf-8"
+    },
+    body: JSON.stringify({
+      from: from,
+      to: [email],
+      subject: "Your Pace & Pattern sign-in link",
+      text: [
+        "Use this link within 15 minutes to sign in to Pace & Pattern:",
+        "",
+        link,
+        "",
+        "If you did not request this, you can ignore this email."
+      ].join("\n")
     })
   });
   if (!response.ok) {
     const details = await response.text();
-    throw new Error("Google OAuth rejected the Gmail credentials (HTTP " + response.status +
-      "): " + details.slice(0, 300));
-  }
-  const result = await response.json();
-  if (typeof result.access_token !== "string" || !result.access_token) {
-    throw new Error("Google OAuth did not return a Gmail access token.");
-  }
-  return result.access_token;
-}
-
-async function sendLoginEmail(email, token, env) {
-  const accessToken = await gmailAccessToken(env);
-  const siteUrl = (env.SITE_URL || "https://morgagemypyarlay.pages.dev").replace(/\/+$/, "");
-  const link = siteUrl + "/?auth=" + encodeURIComponent(token) + "#account";
-  const message = [
-    "To: " + email,
-    "Subject: Your Pace & Pattern sign-in link",
-    "MIME-Version: 1.0",
-    "Content-Type: text/plain; charset=UTF-8",
-    "Content-Transfer-Encoding: 8bit",
-    "",
-    "Use this link within 15 minutes to sign in to Pace & Pattern:",
-    "",
-    link,
-    "",
-    "If you did not request this, you can ignore this email."
-  ].join("\r\n");
-  const response = await fetch(GMAIL_SEND_ROOT, {
-    method: "POST",
-    headers: {
-      "authorization": "Bearer " + accessToken,
-      "content-type": "application/json; charset=utf-8"
-    },
-    body: JSON.stringify({ raw: base64UrlEncode(message) })
-  });
-  if (!response.ok) {
-    const details = await response.text();
-    throw new Error("Gmail rejected the sign-in email (HTTP " + response.status +
+    throw new Error("Resend rejected the sign-in email (HTTP " + response.status +
       "): " + details.slice(0, 300));
   }
 }
@@ -218,10 +234,40 @@ async function getSession(request, env) {
   }
   const tokenHash = await hashValue(match[1]);
   return env.DB.prepare(
-    "SELECT users.id AS id, users.email AS email FROM sessions " +
+    "SELECT users.id AS id, users.email AS email, users.username AS username FROM sessions " +
     "JOIN users ON users.id = sessions.user_id " +
     "WHERE sessions.token_hash = ? AND sessions.expires_at > ?"
   ).bind(tokenHash, Date.now()).first();
+}
+
+async function allowAuthRequest(identifier, request, env, now) {
+  const identifierHash = await hashValue(identifier);
+  const sourceIp = request.headers.get("CF-Connecting-IP") || "unknown";
+  const ipHash = await hashValue(sourceIp);
+  await env.DB.prepare("DELETE FROM auth_requests WHERE created_at < ?").bind(now - 3600000).run();
+  await env.DB.prepare("DELETE FROM login_tokens WHERE expires_at < ?").bind(now).run();
+  await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now).run();
+  const limits = await env.DB.batch([
+    env.DB.prepare("SELECT COUNT(*) AS count FROM auth_requests WHERE email_hash = ? AND created_at > ?")
+      .bind(identifierHash, now - 900000),
+    env.DB.prepare("SELECT COUNT(*) AS count FROM auth_requests WHERE ip_hash = ? AND created_at > ?")
+      .bind(ipHash, now - 900000)
+  ]);
+  if (limits[0].results[0].count >= 3 || limits[1].results[0].count >= 10) {
+    return false;
+  }
+  await env.DB.prepare(
+    "INSERT INTO auth_requests (email_hash, ip_hash, created_at) VALUES (?, ?, ?)"
+  ).bind(identifierHash, ipHash, now).run();
+  return true;
+}
+
+async function createSession(userId, env, now) {
+  const sessionToken = newToken();
+  await env.DB.prepare(
+    "INSERT INTO sessions (token_hash, user_id, expires_at, created_at) VALUES (?, ?, ?, ?)"
+  ).bind(await hashValue(sessionToken), userId, now + SESSION_TTL_MS, now).run();
+  return { token: sessionToken, expiresAt: now + SESSION_TTL_MS };
 }
 
 async function readJson(request) {
@@ -282,8 +328,8 @@ async function handleApi(request, url, env) {
   }
 
   if (url.pathname === "/api/auth/request" && request.method === "POST") {
-    if (!accountsEnabled(env)) {
-      return jsonError("Email accounts are not configured on the backend yet.", 503);
+    if (!emailSignInEnabled(env)) {
+      return jsonError("Email sign-in is not configured on the backend yet.", 503);
     }
     const body = await readJson(request);
     const email = typeof body.email === "string" ? body.email.trim().toLowerCase() : "";
@@ -292,26 +338,11 @@ async function handleApi(request, url, env) {
     }
 
     const now = Date.now();
-    const emailHash = await hashValue(email);
-    const sourceIp = request.headers.get("CF-Connecting-IP") || "unknown";
-    const ipHash = await hashValue(sourceIp);
-    await env.DB.prepare("DELETE FROM auth_requests WHERE created_at < ?").bind(now - 3600000).run();
-    await env.DB.prepare("DELETE FROM login_tokens WHERE expires_at < ?").bind(now).run();
-    await env.DB.prepare("DELETE FROM sessions WHERE expires_at < ?").bind(now).run();
-    const limits = await env.DB.batch([
-      env.DB.prepare("SELECT COUNT(*) AS count FROM auth_requests WHERE email_hash = ? AND created_at > ?")
-        .bind(emailHash, now - 900000),
-      env.DB.prepare("SELECT COUNT(*) AS count FROM auth_requests WHERE ip_hash = ? AND created_at > ?")
-        .bind(ipHash, now - 900000)
-    ]);
-    if (limits[0].results[0].count >= 3 || limits[1].results[0].count >= 10) {
+    if (!await allowAuthRequest(email, request, env, now)) {
       return jsonError("Too many sign-in requests. Wait 15 minutes and try again.", 429);
     }
 
     const token = newToken();
-    await env.DB.prepare(
-      "INSERT INTO auth_requests (email_hash, ip_hash, created_at) VALUES (?, ?, ?)"
-    ).bind(emailHash, ipHash, now).run();
     await env.DB.prepare(
       "INSERT INTO login_tokens (token_hash, email, expires_at, created_at) VALUES (?, ?, ?, ?)"
     ).bind(await hashValue(token), email, now + TOKEN_TTL_MS, now).run();
@@ -323,6 +354,78 @@ async function handleApi(request, url, env) {
     }
     return {
       body: { message: "If the address can receive email, a sign-in link is on its way. It expires in 15 minutes." },
+      status: 200
+    };
+  }
+
+  if (url.pathname === "/api/auth/register" && request.method === "POST") {
+    if (!accountsEnabled(env)) {
+      return jsonError("Username accounts are not enabled for this deployment.", 503);
+    }
+    const body = await readJson(request);
+    const usernameInput = body && typeof body.username === "string" ? body.username.trim() : "";
+    const password = body && body.password;
+    if (!validUsername(usernameInput)) {
+      return jsonError("Use a username with 3 to 32 letters, numbers, or underscores.", 400);
+    }
+    if (!validPassword(password)) {
+      return jsonError("Use a password between 12 and 128 characters.", 400);
+    }
+    const username = usernameInput.toLowerCase();
+    const now = Date.now();
+    if (!await allowAuthRequest(username, request, env, now)) {
+      return jsonError("Too many account requests. Wait 15 minutes and try again.", 429);
+    }
+    const salt = bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
+    const passwordHash = await hashPassword(password, salt, PASSWORD_ITERATIONS);
+    const userId = crypto.randomUUID();
+    const inserted = await env.DB.prepare(
+      "INSERT INTO users (id, email, username, password_salt, password_hash, password_iterations, created_at) " +
+      "VALUES (?, NULL, ?, ?, ?, ?, ?) ON CONFLICT(username) DO NOTHING"
+    ).bind(userId, username, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+    if (!inserted.meta || inserted.meta.changes !== 1) {
+      return jsonError("That username is already taken.", 409);
+    }
+    const session = await createSession(userId, env, now);
+    return {
+      body: { token: session.token, username: username, expiresAt: session.expiresAt },
+      status: 201
+    };
+  }
+
+  if (url.pathname === "/api/auth/login" && request.method === "POST") {
+    if (!accountsEnabled(env)) {
+      return jsonError("Username accounts are not enabled for this deployment.", 503);
+    }
+    const body = await readJson(request);
+    const usernameInput = body && typeof body.username === "string" ? body.username.trim() : "";
+    const password = body && body.password;
+    if (!validUsername(usernameInput) || typeof password !== "string" || password.length > 128) {
+      return jsonError("Enter a valid username and password.", 400);
+    }
+    const username = usernameInput.toLowerCase();
+    const now = Date.now();
+    if (!await allowAuthRequest(username, request, env, now)) {
+      return jsonError("Too many sign-in attempts. Wait 15 minutes and try again.", 429);
+    }
+    const user = await env.DB.prepare(
+      "SELECT id, username, password_salt, password_hash, password_iterations " +
+      "FROM users WHERE username = ?"
+    ).bind(username).first();
+    const salt = user && /^[a-f0-9]{32}$/i.test(user.password_salt || "")
+      ? user.password_salt
+      : DUMMY_PASSWORD_SALT;
+    const iterations = user && Number.isInteger(user.password_iterations) &&
+      user.password_iterations >= 100000 && user.password_iterations <= 1000000
+      ? user.password_iterations
+      : PASSWORD_ITERATIONS;
+    const passwordHash = await hashPassword(password, salt, iterations);
+    if (!user || !user.password_hash || !equalHexValues(passwordHash, user.password_hash)) {
+      return jsonError("Invalid username or password.", 401);
+    }
+    const session = await createSession(user.id, env, now);
+    return {
+      body: { token: session.token, username: user.username, expiresAt: session.expiresAt },
       status: 200
     };
   }
@@ -429,7 +532,7 @@ async function handleApi(request, url, env) {
   }
 
   if (!accountsEnabled(env)) {
-    return jsonError("Email accounts are not enabled for this deployment.", 503);
+    return jsonError("Accounts are not enabled for this deployment.", 503);
   }
 
   const session = await getSession(request, env);
@@ -438,7 +541,7 @@ async function handleApi(request, url, env) {
   }
 
   if (url.pathname === "/api/me" && request.method === "GET") {
-    return { body: { email: session.email }, status: 200 };
+    return { body: { username: session.username, email: session.email }, status: 200 };
   }
 
   if (url.pathname === "/api/bets" && request.method === "GET") {
@@ -493,12 +596,18 @@ async function handleApi(request, url, env) {
   }
 
   if (url.pathname === "/api/account" && request.method === "DELETE") {
-    const user = await env.DB.prepare("SELECT email FROM users WHERE id = ?")
+    const user = await env.DB.prepare("SELECT email, username FROM users WHERE id = ?")
       .bind(session.id).first();
     if (user) {
-      await env.DB.prepare("DELETE FROM login_tokens WHERE email = ?").bind(user.email).run();
-      await env.DB.prepare("DELETE FROM auth_requests WHERE email_hash = ?")
-        .bind(await hashValue(user.email)).run();
+      if (user.email) {
+        await env.DB.prepare("DELETE FROM login_tokens WHERE email = ?").bind(user.email).run();
+        await env.DB.prepare("DELETE FROM auth_requests WHERE email_hash = ?")
+          .bind(await hashValue(user.email)).run();
+      }
+      if (user.username) {
+        await env.DB.prepare("DELETE FROM auth_requests WHERE email_hash = ?")
+          .bind(await hashValue(user.username)).run();
+      }
     }
     await env.DB.prepare("DELETE FROM users WHERE id = ?").bind(session.id).run();
     return { body: { deleted: true }, status: 200 };

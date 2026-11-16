@@ -166,21 +166,29 @@
       </div>
 
       <section id="account-signed-out" class="panel account-panel">
-        <h2>Optional email sign-in</h2>
+        <h2>Sign in or create an account</h2>
         <p>You can browse the live board and patterns without an account. Sign in only if you want to keep a personal bet journal online.</p>
         <form id="login-form" class="account-login-form">
           <label>
-            <span class="field-label">Email address</span>
-            <input id="login-email" type="email" autocomplete="email" maxlength="254" required>
+            <span class="field-label">Username</span>
+            <input id="login-username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" required>
           </label>
-          <button class="refresh-button" type="submit">Email me a sign-in link</button>
+          <label>
+            <span class="field-label">Password</span>
+            <input id="login-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+          </label>
+          <div class="account-actions">
+            <button class="refresh-button" type="submit">Sign in</button>
+            <button class="text-button" type="button" id="create-account">Create account</button>
+          </div>
         </form>
+        <p>Use a password of at least 12 characters. Usernames can contain letters, numbers, and underscores.</p>
         <p id="login-status" class="account-message" role="status" aria-live="polite"></p>
       </section>
 
       <section id="account-signed-in" hidden>
         <div class="account-toolbar">
-          <p>Signed in as <strong id="account-email"></strong></p>
+          <p>Signed in as <strong id="account-username"></strong></p>
           <div class="account-actions">
             <button type="button" class="text-button" id="delete-account">Delete account and data</button>
             <button type="button" class="text-button" id="sign-out">Sign out</button>
@@ -232,7 +240,7 @@
         <span class="responsible-icon" aria-hidden="true">i</span>
         <div>
           <strong>Account and journal privacy</strong>
-          <p>Email sign-in is optional. If you create an account, your email address and bet records are stored by the private API service in its Cloudflare database and linked to your account. Sign out on shared devices, and use the delete-account control to remove your account and its records. This journal does not connect to sportsbooks, verify outcomes, or provide betting advice.</p>
+          <p>Username and password sign-in is optional. Your username, password hash, and bet records are stored by the private API service in its Cloudflare database and linked to your account. Passwords are never stored as plain text. Sign out on shared devices, and use the delete-account control to remove your account and its records. This journal does not connect to sportsbooks, verify outcomes, or provide betting advice.</p>
         </div>
       </aside>
     </section>
@@ -254,7 +262,7 @@
         <article class="panel step-card">
           <span class="step-number">02</span>
           <h2>Optional account journal</h2>
-          <p>Sign in by email to save your own bet records online. Browsing does not require an account.</p>
+          <p>Sign in with a username and password to save your own bet records online. Browsing does not require an account.</p>
         </article>
         <article class="panel step-card">
           <span class="step-number">03</span>
