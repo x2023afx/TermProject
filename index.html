@@ -4,281 +4,196 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Explore live sports scores and odds, illustrative historical patterns, and an optional private bet journal.">
-  <title>Pace &amp; Pattern — Live game explorer</title>
+  <meta name="description" content="Explore real stock prices, historical comparisons, and short-term model projections.">
+  <title>Northstar — Stock research</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#live" aria-label="Pace and Pattern live game board">
-      <span class="brand-mark" aria-hidden="true">P</span>
-      <span id="brand-name">Pace &amp; Pattern</span>
-    </a>
+    <a class="brand" href="#stocks"><span class="brand-mark" aria-hidden="true">N</span>Northstar</a>
     <nav aria-label="Main navigation">
-      <a href="#live">Live games</a>
-      <a href="#home">Patterns</a>
-      <a href="#account">My account</a>
-      <a href="#how">About</a>
+      <a href="#stocks">Stock research</a>
+      <a href="#account">Account</a>
+      <a href="#about">Methodology</a>
     </nav>
-    <span class="data-badge" id="data-badge"><span aria-hidden="true"></span> Checking connection</span>
-    <a class="sign-in-button" href="#account">Sign in</a>
+    <span id="data-badge" class="data-badge"><span aria-hidden="true"></span> Checking market data</span>
+    <a class="header-button" href="#account">Sign in</a>
   </header>
 
   <main>
-    <section id="live" data-view>
+    <section id="stocks" data-view>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Live market board</p>
-          <h1>Follow the game as it happens.</h1>
-          <p class="lead">Live scores and available sportsbook odds, with implied probabilities and observed price changes.</p>
+          <p class="eyebrow">Market research</p>
+          <h1>Understand the move. See the uncertainty.</h1>
+          <p class="lead">Review real market history alongside a transparent, short-horizon statistical projection.</p>
         </div>
-        <div class="heading-mark" aria-hidden="true">◷</div>
       </div>
 
-      <section class="filter-panel live-filter" aria-label="Choose a sport and live market">
-        <label>
-          <span class="field-label">Sport</span>
-          <select id="sport-select" disabled>
-            <option>Loading sports…</option>
-          </select>
+      <form id="stock-form" class="stock-search panel">
+        <label for="stock-symbol">
+          <span class="field-label">Stock or ETF symbol</span>
+          <input id="stock-symbol" name="symbol" type="text" list="stock-symbols" value="AAPL"
+            maxlength="12" pattern="[A-Za-z0-9.^=-]{1,12}" autocomplete="off" required>
+          <datalist id="stock-symbols"></datalist>
         </label>
-        <label>
-          <span class="field-label">Odds market</span>
-          <select id="live-market-select">
-            <option value="h2h">Moneyline</option>
-            <option value="spreads">Spread</option>
-            <option value="totals">Game total</option>
-          </select>
-        </label>
-        <button class="refresh-button" id="refresh-live" type="button">Refresh live data</button>
-      </section>
+        <button id="stock-submit" class="primary-button" type="submit">Analyze stock</button>
+      </form>
 
-      <div class="live-status-row">
-        <p id="live-status" role="status" aria-live="polite">Connecting to the live data service…</p>
-        <p id="last-updated"></p>
-      </div>
-      <div id="live-games" class="live-grid" aria-live="polite"></div>
-      <p class="live-empty" id="live-empty" hidden>No games or odds are currently available for this sport.</p>
-      <aside class="responsible-note live-disclaimer">
-        <span class="responsible-icon" aria-hidden="true">i</span>
-        <div>
-          <strong>Odds show market pricing, not a forecast</strong>
-          <p>Implied probabilities are calculated from listed odds and include the bookmaker margin. Arrows compare this refresh with the previous observation in this tab; they do not predict future movement or game outcomes. Live coverage and detailed stats vary by sport and provider.</p>
-        </div>
-      </aside>
-    </section>
-
-    <section id="home" data-view hidden>
-      <div class="page-heading">
-        <div>
-          <p class="eyebrow">Game timing explorer</p>
-          <h1>Patterns, not predictions.</h1>
-          <p class="lead">Compare illustrative historical patterns by matchup, market, and time window.</p>
-        </div>
-        <div class="heading-mark" aria-hidden="true">↗</div>
+      <div class="status-row">
+        <p id="market-status" role="status" aria-live="polite">Loading market history...</p>
+        <p id="market-updated"></p>
       </div>
 
-      <section class="filter-panel" aria-label="Choose a game and market">
-        <label>
-          <span class="field-label">Matchup</span>
-          <select id="game-select"></select>
-        </label>
-        <label>
-          <span class="field-label">Market</span>
-          <select id="market-select">
-            <option value="moneyline">Moneyline</option>
-            <option value="spread">Point spread</option>
-            <option value="total">Game total</option>
-          </select>
-        </label>
-        <div class="game-time">
-          <span class="field-label">Scheduled</span>
-          <strong id="game-start"></strong>
-        </div>
-      </section>
-
-      <div class="section-title">
-        <div>
-          <h2>Historical timing signals</h2>
-          <p id="market-context">Past sample results by time before game start</p>
-        </div>
-        <span class="sample-pill">Illustrative sample</span>
-      </div>
-
-      <section class="analysis-grid" aria-label="Historical pattern analysis">
-        <article class="panel chart-panel">
-          <div class="panel-heading">
+      <section id="stock-overview" class="overview-grid" aria-label="Selected stock overview" hidden>
+        <article class="panel quote-card">
+          <div class="quote-heading">
             <div>
-              <h3>Pattern by timing window</h3>
-              <p>Historical sample hit rate · not a forecast</p>
+              <p class="eyebrow" id="company-name">Stock</p>
+              <h2 id="quote-symbol">AAPL</h2>
             </div>
-            <span class="chart-legend"><i></i> Sample result</span>
+            <span class="quote-label">Latest daily close</span>
           </div>
-          <div id="chart" class="chart" role="img" aria-label="Bar chart of historical sample results by timing window"></div>
-          <div class="chart-axis"><span>24 hours before</span><span>Game start</span></div>
-          <p class="chart-note">A higher percentage reflects only how the fictional sample performed. It does not imply future results.</p>
+          <strong id="quote-price" class="quote-price">--</strong>
+          <p id="quote-change" class="quote-change"></p>
+          <p class="muted small" id="quote-date"></p>
+        </article>
+        <article class="panel projection-card">
+          <p class="eyebrow">Two-session projection</p>
+          <strong id="projection-change" class="projection-change">--</strong>
+          <p id="projection-price" class="projection-price"></p>
+          <p class="muted small">Model estimate, not a target or recommendation.</p>
+        </article>
+        <article class="panel confidence-card">
+          <p class="eyebrow">Historical model confidence</p>
+          <strong id="model-confidence" class="model-confidence">--</strong>
+          <p id="confidence-detail" class="muted small"></p>
+        </article>
+      </section>
+
+      <section class="research-grid" aria-label="Stock history and projections">
+        <article class="panel chart-panel">
+          <div class="panel-title">
+            <div>
+              <h2>Recent price history</h2>
+              <p>Daily closing prices · past 3 months</p>
+            </div>
+          </div>
+          <div id="chart-empty" class="chart-empty">Choose a stock to load its historical prices.</div>
+          <svg id="price-chart" class="price-chart" role="img" aria-label="Stock daily closing price chart" hidden></svg>
+          <div id="chart-range" class="chart-range" hidden></div>
         </article>
 
-        <aside class="panel signal-panel">
-          <p class="eyebrow">Historical standout</p>
-          <p class="signal-window" id="best-window">—</p>
-          <div class="signal-rate"><strong id="best-rate">—</strong><span>sample hit rate</span></div>
-          <p id="best-note" class="signal-note"></p>
-          <div class="divider"></div>
-          <div class="signal-stat">
-            <span>Historical line movement</span>
-            <strong id="best-move">—</strong>
+        <article class="panel forecast-panel">
+          <div class="panel-title">
+            <div>
+              <h2>Next two trading sessions</h2>
+              <p>Point estimate and an 80% model range</p>
+            </div>
           </div>
-          <div class="signal-stat">
-            <span>Examples in sample</span>
-            <strong id="sample-count">—</strong>
+          <div id="forecast-results" class="forecast-results">
+            <p class="chart-empty">A projection will appear after market data loads.</p>
           </div>
-          <p class="signal-disclaimer">This is a descriptive pattern in simulated data, not a recommendation to place a bet.</p>
-        </aside>
+          <p id="forecast-method" class="forecast-method"></p>
+        </article>
       </section>
 
-      <section class="window-section">
-        <div class="section-title">
+      <section class="panel comparables-panel">
+        <div class="panel-title">
           <div>
-            <h2>Compare windows</h2>
-            <p>Small samples can be noisy; compare counts as well as percentages.</p>
+            <h2>Comparable market history</h2>
+            <p>Recent returns of the comparison stocks used by the model</p>
           </div>
         </div>
-        <div class="window-grid" id="window-grid"></div>
-      </section>
-
-      <section class="responsible-note">
-        <span class="responsible-icon" aria-hidden="true">i</span>
-        <div>
-          <strong>For research and education only</strong>
-          <p>All teams, matchups, and statistics on this prototype are fictional. Historical patterns cannot predict outcomes. If you choose to gamble, set limits and follow local laws.</p>
+        <div id="comparables" class="comparables-list">
+          <p class="chart-empty">Comparable data will appear after market data loads.</p>
         </div>
       </section>
+
+      <aside class="notice">
+        <strong>Research tool, not financial advice</strong>
+        <p>Short-term price movements are highly uncertain. Projections are generated from historical daily returns and comparable securities; they are not guaranteed outcomes, personalized recommendations, or a substitute for professional advice. Market data may be delayed or incomplete. You can lose money investing.</p>
+      </aside>
     </section>
 
     <section id="account" data-view hidden>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Optional account journal</p>
-          <h1>Your bet history.</h1>
-          <p class="lead">Create an account only if you want to keep your manually recorded bets online.</p>
+          <p class="eyebrow">Your Northstar account</p>
+          <h1>Sign in without email confirmation.</h1>
+          <p class="lead">An account lets you sign in to this research prototype. No confirmation or sign-in emails are sent.</p>
         </div>
       </div>
-
       <section id="account-signed-out" class="panel account-panel">
-        <h2>Sign in or create an account</h2>
-        <p>You can browse the live board and patterns without an account. Sign in only if you want to keep a personal bet journal online.</p>
-        <form id="login-form" class="account-login-form">
-          <label>
-            <span class="field-label">Username</span>
-            <input id="login-username" type="text" autocomplete="username" minlength="3" maxlength="32" pattern="[A-Za-z0-9_]+" required>
+        <h2>Email and password</h2>
+        <form id="account-form" class="account-form">
+          <label for="account-email">
+            <span class="field-label">Email</span>
+            <input id="account-email" name="email" type="email" autocomplete="email" maxlength="254"
+              pattern="[^@\s]+@[^@\s]+\.[^@\s]+" required>
           </label>
-          <label>
+          <label for="account-password">
             <span class="field-label">Password</span>
-            <input id="login-password" type="password" autocomplete="current-password" minlength="12" maxlength="128" required>
+            <input id="account-password" name="password" type="password" autocomplete="current-password"
+              minlength="12" maxlength="128" required>
           </label>
           <div class="account-actions">
-            <button class="refresh-button" type="submit">Sign in</button>
-            <button class="text-button" type="button" id="create-account">Create account</button>
+            <button class="primary-button" type="submit" data-action="login">Sign in</button>
+            <button class="secondary-button" type="button" id="create-account">Create account</button>
           </div>
         </form>
-        <p>Use a password of at least 12 characters. Usernames can contain letters, numbers, and underscores.</p>
-        <p id="login-status" class="account-message" role="status" aria-live="polite"></p>
+        <p class="muted small">Use an email address in a valid format and a password of at least 12 characters. Email ownership is not verified.</p>
+        <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
       </section>
-
-      <section id="account-signed-in" hidden>
-        <div class="account-toolbar">
-          <p>Signed in as <strong id="account-username"></strong></p>
-          <div class="account-actions">
-            <button type="button" class="text-button" id="delete-account">Delete account and data</button>
-            <button type="button" class="text-button" id="sign-out">Sign out</button>
-          </div>
+      <section id="account-signed-in" class="panel account-panel" hidden>
+        <p>You are signed in as <strong id="account-email-display"></strong>.</p>
+        <div class="account-actions">
+          <button type="button" class="secondary-button" id="sign-out">Sign out</button>
+          <button type="button" class="text-button danger-text" id="delete-account">Delete account</button>
         </div>
-
-        <div class="account-summary" aria-label="Bet history summary">
-          <article class="panel summary-card"><span>Winning profit</span><strong id="summary-wins">$0.00</strong></article>
-          <article class="panel summary-card"><span>Losses (stake)</span><strong id="summary-losses">$0.00</strong></article>
-          <article class="panel summary-card"><span>Net result</span><strong id="summary-net">$0.00</strong></article>
-          <article class="panel summary-card"><span>Win · loss · push</span><strong id="summary-record">0 · 0 · 0</strong></article>
-        </div>
-
-        <section class="panel account-panel">
-          <h2>Log a bet</h2>
-          <p>Enter the stake and American odds shown on your bet slip. Results and totals are not imported from sportsbooks.</p>
-          <form id="bet-form" class="bet-form">
-            <label><span class="field-label">Game or event</span><input id="bet-event" maxlength="160" required placeholder="e.g. Team A vs Team B"></label>
-            <label><span class="field-label">Market</span><input id="bet-market" maxlength="160" required placeholder="e.g. Moneyline"></label>
-            <label><span class="field-label">Selection</span><input id="bet-selection" maxlength="160" required placeholder="e.g. Team A to win"></label>
-            <label><span class="field-label">American odds</span><input id="bet-odds" type="number" min="-100000" max="100000" step="1" required placeholder="-110"></label>
-            <label><span class="field-label">Stake (USD)</span><input id="bet-stake" type="number" min="0.01" max="1000000" step="0.01" required placeholder="10.00"></label>
-            <label>
-              <span class="field-label">Result</span>
-              <select id="bet-outcome">
-                <option value="pending">Pending</option><option value="won">Won</option>
-                <option value="lost">Lost</option><option value="push">Push / void</option>
-              </select>
-            </label>
-            <label><span class="field-label">Bet date</span><input id="bet-date" type="date" required></label>
-            <button class="refresh-button" type="submit">Save bet</button>
-          </form>
-          <p id="bet-status" class="account-message" role="status" aria-live="polite"></p>
-        </section>
-
-        <section class="account-history">
-          <div class="section-title">
-            <div>
-              <h2>Bet history</h2>
-              <p>Totals include settled bets only; pending bets are excluded.</p>
-            </div>
-          </div>
-          <div id="bet-history" class="bet-history"></div>
-          <p id="bet-history-empty" class="live-empty" hidden>No bets logged yet.</p>
-        </section>
       </section>
-
-      <aside class="responsible-note">
-        <span class="responsible-icon" aria-hidden="true">i</span>
-        <div>
-          <strong>Account and journal privacy</strong>
-          <p>Username and password sign-in is optional. Your username, password hash, and bet records are stored by the private API service in its Cloudflare database and linked to your account. Passwords are never stored as plain text. Sign out on shared devices, and use the delete-account control to remove your account and its records. This journal does not connect to sportsbooks, verify outcomes, or provide betting advice.</p>
-        </div>
+      <aside class="notice">
+        <strong>Account privacy</strong>
+        <p>Your email address, salted password hash, and session are stored by the API in its existing Cloudflare D1 database. Passwords are never stored as plain text. Since email ownership is not verified, use an address you control and do not reuse an important password.</p>
       </aside>
     </section>
 
-    <section id="how" data-view hidden>
+    <section id="about" data-view hidden>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">About the prototype</p>
-          <h1>How to use Pace &amp; Pattern.</h1>
-          <p class="lead">The game board requests current sports data; the historical pattern examples remain illustrative.</p>
+          <p class="eyebrow">Methodology and limitations</p>
+          <h1>What the projection does and does not mean.</h1>
+          <p class="lead">A simple, inspectable baseline that compares recent returns. It cannot reliably predict future prices.</p>
         </div>
       </div>
-      <div class="steps">
-        <article class="panel step-card">
+      <div class="method-cards">
+        <article class="panel method-card">
           <span class="step-number">01</span>
-          <h2>Explore live games</h2>
-          <p>Choose a sport and market to request available scores and odds from the sports data provider.</p>
+          <h2>Market data</h2>
+          <p>Daily historical prices are retrieved from Yahoo Finance chart data. The displayed latest close can be delayed; this is not a real-time trading feed.</p>
         </article>
-        <article class="panel step-card">
+        <article class="panel method-card">
           <span class="step-number">02</span>
-          <h2>Optional account journal</h2>
-          <p>Sign in with a username and password to save your own bet records online. Browsing does not require an account.</p>
+          <h2>Projection</h2>
+          <p>The estimate blends the selected stock's mean daily return over the latest 60 aligned sessions with the mean return of its configured comparison securities. It compounds that blended mean over the next two sessions.</p>
         </article>
-        <article class="panel step-card">
+        <article class="panel method-card">
           <span class="step-number">03</span>
-          <h2>Keep it in context</h2>
-          <p>Live data availability varies. The site does not connect to sportsbooks, import or verify your bets, or predict game outcomes.</p>
+          <h2>Confidence and range</h2>
+          <p>The confidence percentage is the model's directional accuracy over up to 60 rolling, out-of-sample two-session historical tests, not the probability that a forecast will be correct. The 80% range assumes historical return dispersion continues; it is not guaranteed to contain the future price.</p>
         </article>
       </div>
-      <a class="back-link" href="#home">← Back to dashboard</a>
+      <aside class="notice">
+        <strong>Important</strong>
+        <p>Historical performance does not predict future results. The model omits earnings, news, macroeconomic changes, trading costs, and other factors. If too little comparable history is available, the app reports that the confidence estimate cannot be calculated.</p>
+      </aside>
     </section>
   </main>
 
   <footer class="site-footer">
-    <span>Student prototype for BSAD 281 at St. Francis Xavier University.</span>
-    <span>Market information only · No betting advice</span>
+    <span>Northstar stock research prototype</span>
+    <span>Market data is not investment advice</span>
   </footer>
-
   <script src="data.js"></script>
   <script src="app.js"></script>
 </body>

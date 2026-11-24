@@ -1,53 +1,23 @@
 (function () {
   "use strict";
 
-  const gameSelect = document.getElementById("game-select");
-  const marketSelect = document.getElementById("market-select");
-  const chart = document.getElementById("chart");
-  const windowGrid = document.getElementById("window-grid");
-  const sportSelect = document.getElementById("sport-select");
-  const liveMarketSelect = document.getElementById("live-market-select");
-  const liveGames = document.getElementById("live-games");
-  const liveStatus = document.getElementById("live-status");
-  const liveEmpty = document.getElementById("live-empty");
-  const lastUpdated = document.getElementById("last-updated");
-  const dataBadge = document.getElementById("data-badge");
-  const previousOdds = new Map();
-  const accountTokenKey = "pacePatternAccountToken";
-  let liveRequestId = 0;
-  let accountRequestId = 0;
+  const accountTokenKey = "northstarAccountToken";
+  const stockForm = document.getElementById("stock-form");
+  const symbolInput = document.getElementById("stock-symbol");
+  const accountToken = function () {
+    try {
+      return localStorage.getItem(accountTokenKey) || "";
+    } catch (error) {
+      return "";
+    }
+  };
+  let stockRequestId = 0;
 
   function apiUrl(path) {
-    return API_BASE_URL.replace(/\/+$/, "") + path;
+    return STARTUP.apiBaseUrl.replace(/\/+$/, "") + path;
   }
 
-  function readApiResponse(response) {
-    return response.text().then(function (body) {
-      let data;
-      try {
-        data = JSON.parse(body);
-      } catch (error) {
-        if (body.trim().charAt(0) === "<") {
-          throw new Error("The live data service returned a web page instead of API data. Check API_BASE_URL in data.js and confirm the Worker is deployed.");
-        }
-        throw new Error("The live data server returned an invalid response. Try again later.");
-      }
-
-      if (!response.ok) {
-        throw new Error(data.error || "Live data could not be loaded.");
-      }
-      return data;
-    });
-  }
-
-  function getApiErrorMessage(error) {
-    if (error instanceof TypeError) {
-      return "Could not reach the live data service. Check the Worker URL and set its CORS_ORIGIN to https://morgagemypyarlay.pages.dev.";
-    }
-    return error.message || "Live data could not be loaded.";
-  }
-
-  function accountRequest(path, token, options) {
+  function apiRequest(path, token, options) {
     const requestOptions = options || {};
     requestOptions.headers = Object.assign({}, requestOptions.headers || {});
     if (token) {
@@ -56,640 +26,326 @@
     if (requestOptions.body) {
       requestOptions.headers["Content-Type"] = "application/json";
     }
-    return fetch(apiUrl(path), requestOptions).then(readApiResponse);
+    return fetch(apiUrl(path), requestOptions).then(function (response) {
+      return response.text().then(function (body) {
+        let data;
+        try {
+          data = JSON.parse(body);
+        } catch (error) {
+          throw new Error("The API returned an invalid response. Check the Worker URL and deployment.");
+        }
+        if (!response.ok) {
+          throw new Error(data.error || "The request could not be completed.");
+        }
+        return data;
+      });
+    });
   }
 
-  function currentSessionToken() {
-    try {
-      return localStorage.getItem(accountTokenKey) || "";
-    } catch (error) {
-      return "";
-    }
-  }
-
-  function saveSessionToken(token) {
-    localStorage.setItem(accountTokenKey, token);
-  }
-
-  function clearSessionToken() {
-    localStorage.removeItem(accountTokenKey);
-  }
-
-  function setAccountSignedIn(signedIn) {
+  function displayAccount(signedIn, email) {
     document.getElementById("account-signed-out").hidden = signedIn;
     document.getElementById("account-signed-in").hidden = !signedIn;
+    document.getElementById("account-email-display").textContent = email || "";
   }
 
-  function currency(cents) {
+  function setMarketStatus(message, connected) {
+    document.getElementById("market-status").textContent = message;
+    const badge = document.getElementById("data-badge");
+    badge.classList.toggle("is-connected", connected);
+    badge.classList.toggle("is-disconnected", !connected);
+    badge.lastChild.textContent = connected ? " Market data available" : " Market data unavailable";
+  }
+
+  function formatCurrency(value, currencyCode) {
     return new Intl.NumberFormat(undefined, {
       style: "currency",
-      currency: "USD"
-    }).format(cents / 100);
+      currency: currencyCode || "USD",
+      maximumFractionDigits: 2
+    }).format(value);
   }
 
-  function betProfitCents(bet) {
-    if (bet.outcome === "won") {
-      return Math.round(bet.stakeCents * (bet.americanOdds > 0
-        ? bet.americanOdds / 100
-        : 100 / Math.abs(bet.americanOdds)));
-    }
-    if (bet.outcome === "lost") {
-      return -bet.stakeCents;
-    }
-    return 0;
+  function formatPercent(value) {
+    return (value > 0 ? "+" : "") + (value * 100).toFixed(2) + "%";
   }
 
-  function renderBetHistory(bets) {
-    const history = document.getElementById("bet-history");
-    const empty = document.getElementById("bet-history-empty");
-    history.replaceChildren();
-    empty.hidden = bets.length > 0;
-
-    let winnings = 0;
-    let losses = 0;
-    let winsCount = 0;
-    let lossesCount = 0;
-    let pushesCount = 0;
-    bets.forEach(function (bet) {
-      if (bet.outcome === "won") {
-        winnings += betProfitCents(bet);
-        winsCount += 1;
-      } else if (bet.outcome === "lost") {
-        losses += bet.stakeCents;
-        lossesCount += 1;
-      } else if (bet.outcome === "push") {
-        pushesCount += 1;
-      }
-
-      const card = document.createElement("article");
-      card.className = "panel bet-card";
-      const info = document.createElement("div");
-      info.className = "bet-card-info";
-      const title = document.createElement("h3");
-      title.textContent = bet.eventName + " · " + bet.selection;
-      const meta = document.createElement("p");
-      meta.textContent = bet.market + " · " + (bet.americanOdds > 0 ? "+" : "") +
-        bet.americanOdds + " odds · " + currency(bet.stakeCents) + " stake · " +
-        new Date(bet.placedAt).toLocaleDateString();
-      info.append(title, meta);
-
-      const controls = document.createElement("div");
-      controls.className = "bet-card-controls";
-      const outcome = document.createElement("select");
-      outcome.setAttribute("aria-label", "Result for " + bet.eventName + " " + bet.selection);
-      ["pending", "won", "lost", "push"].forEach(function (value) {
-        const option = document.createElement("option");
-        option.value = value;
-        option.textContent = value === "push" ? "Push / void" : value.charAt(0).toUpperCase() + value.slice(1);
-        option.selected = value === bet.outcome;
-        outcome.appendChild(option);
-      });
-
-      const result = document.createElement("strong");
-      const profit = betProfitCents(bet);
-      result.className = "bet-profit" + (profit < 0 ? " is-loss" : "");
-      result.textContent = bet.outcome === "pending"
-        ? "Pending"
-        : bet.outcome === "push" ? "—" : (profit > 0 ? "+" : "") + currency(profit);
-
-      const update = document.createElement("button");
-      update.type = "button";
-      update.className = "text-button";
-      update.textContent = "Update";
-      update.addEventListener("click", function () {
-        update.disabled = true;
-        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
-          method: "PATCH",
-          body: JSON.stringify({ outcome: outcome.value })
-        }).then(loadAccount).catch(function (error) {
-          document.getElementById("bet-status").textContent = error.message;
-          update.disabled = false;
-        });
-      });
-
-      const remove = document.createElement("button");
-      remove.type = "button";
-      remove.className = "text-button danger-text";
-      remove.textContent = "Delete";
-      remove.addEventListener("click", function () {
-        if (!window.confirm("Delete this bet record?")) {
-          return;
-        }
-        accountRequest("/api/bets/" + encodeURIComponent(bet.id), currentSessionToken(), {
-          method: "DELETE"
-        }).then(loadAccount).catch(function (error) {
-          document.getElementById("bet-status").textContent = error.message;
-        });
-      });
-      controls.append(outcome, result, update, remove);
-      card.append(info, controls);
-      history.appendChild(card);
-    });
-
-    document.getElementById("summary-wins").textContent = currency(winnings);
-    document.getElementById("summary-losses").textContent = currency(losses);
-    const net = winnings - losses;
-    const netElement = document.getElementById("summary-net");
-    netElement.textContent = (net > 0 ? "+" : "") + currency(net);
-    netElement.classList.toggle("is-loss", net < 0);
-    document.getElementById("summary-record").textContent =
-      winsCount + " · " + lossesCount + " · " + pushesCount;
-  }
-
-  function loadAccount() {
-    const token = currentSessionToken();
-    const requestId = ++accountRequestId;
-    if (!token) {
-      setAccountSignedIn(false);
-      return Promise.resolve();
-    }
-    return accountRequest("/api/me", token)
-      .then(function (user) {
-        if (requestId !== accountRequestId) {
-          return null;
-        }
-        document.getElementById("account-username").textContent = user.username || user.email;
-        setAccountSignedIn(true);
-        return accountRequest("/api/bets", token);
-      })
-      .then(function (data) {
-        if (data && requestId === accountRequestId) {
-          renderBetHistory(data.bets);
-        }
-      })
-      .catch(function (error) {
-        if (requestId === accountRequestId) {
-          if (error.message.indexOf("Sign in") !== -1) {
-            clearSessionToken();
-            setAccountSignedIn(false);
-          }
-          document.getElementById("login-status").textContent = error.message;
-          document.getElementById("bet-status").textContent = error.message;
-        }
-      });
-  }
-
-  function verifyEmailLink() {
-    const pageUrl = new URL(window.location.href);
-    const magicToken = pageUrl.searchParams.get("auth");
-    if (!magicToken) {
-      return Promise.resolve(false);
-    }
-    pageUrl.searchParams.delete("auth");
-    window.history.replaceState(null, "", pageUrl.pathname + "#account");
-    window.location.hash = "account";
-    return accountRequest("/api/auth/verify", "", {
-      method: "POST",
-      body: JSON.stringify({ token: magicToken })
-    }).then(function (session) {
-      saveSessionToken(session.token);
-      document.getElementById("login-status").textContent = "You’re signed in.";
-      return true;
-    }).catch(function (error) {
-      document.getElementById("login-status").textContent = error.message;
-      return true;
-    });
-  }
-
-  function initializeAccount() {
-    const localDate = new Date();
-    document.getElementById("bet-date").value = [
-      localDate.getFullYear(),
-      String(localDate.getMonth() + 1).padStart(2, "0"),
-      String(localDate.getDate()).padStart(2, "0")
-    ].join("-");
-
-    document.getElementById("login-form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      submitCredentials("/api/auth/login", event.currentTarget.querySelector("button[type=submit]"));
-    });
-
-    document.getElementById("create-account").addEventListener("click", function (event) {
-      submitCredentials("/api/auth/register", event.currentTarget);
-    });
-
-    function submitCredentials(path, button) {
-      const usernameInput = document.getElementById("login-username");
-      const passwordInput = document.getElementById("login-password");
-      if (!usernameInput.reportValidity() || !passwordInput.reportValidity()) {
-        return;
-      }
-      passwordInput.autocomplete = path.endsWith("/register") ? "new-password" : "current-password";
-      button.disabled = true;
-      document.getElementById("login-status").textContent =
-        path.endsWith("/register") ? "Creating account…" : "Signing in…";
-      accountRequest(path, "", {
-        method: "POST",
-        body: JSON.stringify({
-          username: usernameInput.value,
-          password: passwordInput.value
-        })
-      }).then(function (session) {
-        saveSessionToken(session.token);
-        passwordInput.value = "";
-        document.getElementById("login-status").textContent = "You’re signed in.";
-        setAccountSignedIn(true);
-        return loadAccount();
-      }).catch(function (error) {
-        document.getElementById("login-status").textContent = error.message;
-      }).then(function () {
-        button.disabled = false;
-      });
-    }
-
-    document.getElementById("bet-form").addEventListener("submit", function (event) {
-      event.preventDefault();
-      const form = event.currentTarget;
-      const stake = Number(document.getElementById("bet-stake").value);
-      const dateParts = document.getElementById("bet-date").value.split("-").map(Number);
-      const placedAt = new Date(dateParts[0], dateParts[1] - 1, dateParts[2]).getTime();
-      const button = form.querySelector("button[type=submit]");
-      button.disabled = true;
-      document.getElementById("bet-status").textContent = "Saving bet…";
-      accountRequest("/api/bets", currentSessionToken(), {
-        method: "POST",
-        body: JSON.stringify({
-          eventName: document.getElementById("bet-event").value,
-          market: document.getElementById("bet-market").value,
-          selection: document.getElementById("bet-selection").value,
-          americanOdds: Number(document.getElementById("bet-odds").value),
-          stakeCents: Math.round(stake * 100),
-          outcome: document.getElementById("bet-outcome").value,
-          placedAt: placedAt
-        })
-      }).then(function () {
-        form.reset();
-        document.getElementById("bet-date").value = [
-          new Date().getFullYear(),
-          String(new Date().getMonth() + 1).padStart(2, "0"),
-          String(new Date().getDate()).padStart(2, "0")
-        ].join("-");
-        document.getElementById("bet-status").textContent = "Bet saved.";
-        return loadAccount();
-      }).catch(function (error) {
-        document.getElementById("bet-status").textContent = error.message;
-      }).then(function () {
-        button.disabled = false;
-      });
-    });
-
-    document.getElementById("sign-out").addEventListener("click", function () {
-      const token = currentSessionToken();
-      accountRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
-        .catch(function (error) {
-          document.getElementById("login-status").textContent =
-            "Signed out on this device. Server session could not be revoked: " + error.message;
-        })
-        .then(function () {
-          clearSessionToken();
-          setAccountSignedIn(false);
-        });
-    });
-
-    document.getElementById("delete-account").addEventListener("click", function () {
-      if (!window.confirm("Permanently delete your account and all its bet records? This cannot be undone.")) {
-        return;
-      }
-      accountRequest("/api/account", currentSessionToken(), { method: "DELETE" })
-        .then(function () {
-          clearSessionToken();
-          setAccountSignedIn(false);
-          document.getElementById("login-status").textContent = "Account and bet history deleted.";
-        })
-        .catch(function (error) {
-          document.getElementById("bet-status").textContent = error.message;
-        });
-    });
-
-    verifyEmailLink().then(function () {
-      loadAccount();
-    });
-
-    accountRequest("/api/status", "").then(function (status) {
-      if (!status.accountsConfigured && !currentSessionToken()) {
-        document.getElementById("login-status").textContent =
-          "Username accounts are not set up on the backend yet. Configure the D1 database and enable accounts on the Worker.";
-      }
-    }).catch(function () {
-      document.getElementById("login-status").textContent =
-        "Could not check account setup. Make sure the live data server is available.";
-    });
-  }
-
-  document.getElementById("brand-name").textContent = STARTUP.name;
-  document.title = STARTUP.name + " — Live game explorer";
-
-  GAMES.forEach(function (game) {
-    const option = document.createElement("option");
-    option.value = game.id;
-    option.textContent = game.away + " at " + game.home;
-    gameSelect.appendChild(option);
-  });
-
-  function makeMeter(rate) {
-    const meter = document.createElement("div");
-    meter.className = "meter";
-    meter.setAttribute("role", "progressbar");
-    meter.setAttribute("aria-label", "Historical sample hit rate");
-    meter.setAttribute("aria-valuemin", "0");
-    meter.setAttribute("aria-valuemax", "100");
-    meter.setAttribute("aria-valuenow", String(rate));
-
-    const fill = document.createElement("span");
-    fill.style.width = rate + "%";
-    meter.appendChild(fill);
-    return meter;
-  }
-
-  function renderAnalysis() {
-    const game = GAMES.find(function (item) { return item.id === gameSelect.value; }) || GAMES[0];
-    const market = marketSelect.value;
-    const windows = game.markets[market];
-    const best = windows.reduce(function (currentBest, item) {
-      return item.hitRate > currentBest.hitRate ? item : currentBest;
-    }, windows[0]);
-    const marketName = marketSelect.options[marketSelect.selectedIndex].textContent.toLowerCase();
-
-    document.getElementById("game-start").textContent = game.start;
-    document.getElementById("market-context").textContent =
-      game.away + " at " + game.home + " · " + marketName + " · fictional historical sample";
-    document.getElementById("best-window").textContent = best.label + " before start";
-    document.getElementById("best-rate").textContent = best.hitRate + "%";
-    document.getElementById("best-note").textContent = best.note;
-    document.getElementById("best-move").textContent = best.lineMove === 0
-      ? "No movement"
-      : best.lineMove.toFixed(1) + " pts";
-    document.getElementById("sample-count").textContent = best.samples + " examples";
-
-    chart.replaceChildren();
-    windowGrid.replaceChildren();
-    windows.forEach(function (item) {
-      const barRow = document.createElement("div");
-      barRow.className = "bar-row" + (item.key === best.key ? " is-best" : "");
-
-      const barLabel = document.createElement("span");
-      barLabel.className = "bar-label";
-      barLabel.textContent = item.label;
-
-      const track = document.createElement("div");
-      track.className = "bar-track";
-      track.appendChild(makeMeter(item.hitRate));
-
-      const value = document.createElement("strong");
-      value.className = "bar-value";
-      value.textContent = item.hitRate + "%";
-
-      barRow.append(barLabel, track, value);
-      chart.appendChild(barRow);
-
-      const card = document.createElement("article");
-      card.className = "window-card" + (item.key === best.key ? " is-best" : "");
-
-      const title = document.createElement("div");
-      title.className = "window-card-heading";
-      const label = document.createElement("h3");
-      label.textContent = item.label;
-      const rate = document.createElement("strong");
-      rate.textContent = item.hitRate + "%";
-      title.append(label, rate);
-
-      const meter = makeMeter(item.hitRate);
-      const count = document.createElement("p");
-      count.className = "window-meta";
-      count.textContent = item.samples + " examples · " +
-        (item.lineMove === 0 ? "no line movement" : item.lineMove.toFixed(1) + " pts average movement");
-      card.append(title, meter, count);
-      windowGrid.appendChild(card);
-    });
-  }
-
-  function setLiveStatus(message, connected) {
-    liveStatus.textContent = message;
-    dataBadge.classList.toggle("is-connected", connected);
-    dataBadge.classList.toggle("is-disconnected", !connected);
-    dataBadge.lastChild.textContent = connected ? " Live data" : " Offline";
-  }
-
-  function formatAmericanOdds(price) {
-    return price > 0 ? "+" + price : String(price);
-  }
-
-  function impliedProbability(price) {
-    return price > 0 ? 100 / (price + 100) : Math.abs(price) / (Math.abs(price) + 100);
-  }
-
-  function getMovement(key, probability) {
-    const previous = previousOdds.get(key);
-    previousOdds.set(key, probability);
-    if (previous === undefined) {
-      return { label: "First observation", direction: "neutral" };
-    }
-
-    const change = (probability - previous) * 100;
-    if (Math.abs(change) < 0.05) {
-      return { label: "No change since refresh", direction: "neutral" };
-    }
-    return {
-      label: (change > 0 ? "↑ " : "↓ ") + Math.abs(change).toFixed(1) + " pp since refresh",
-      direction: change > 0 ? "up" : "down"
-    };
-  }
-
-  function createOdds(event, marketKey) {
-    const bookmaker = (event.bookmakers || []).find(function (book) {
-      return (book.markets || []).some(function (market) { return market.key === marketKey; });
-    });
-    const market = bookmaker && bookmaker.markets.find(function (item) { return item.key === marketKey; });
-    const section = document.createElement("div");
-    section.className = "live-odds";
-
-    if (!market || !market.outcomes.length) {
-      const empty = document.createElement("p");
-      empty.className = "odds-unavailable";
-      empty.textContent = "No odds currently available for this market.";
-      section.appendChild(empty);
-      return section;
-    }
-
-    const provider = document.createElement("p");
-    provider.className = "odds-provider";
-    provider.textContent = "Odds from " + bookmaker.title;
-    section.appendChild(provider);
-
-    market.outcomes.forEach(function (outcome) {
-      const probability = impliedProbability(outcome.price);
-      const movement = getMovement(event.id + ":" + marketKey + ":" + outcome.name, probability);
-      const row = document.createElement("div");
-      row.className = "odds-row";
-
-      const name = document.createElement("span");
-      name.className = "odds-outcome";
-      name.textContent = outcome.name +
-        (typeof outcome.point === "number" ? " (" + (outcome.point > 0 ? "+" : "") + outcome.point + ")" : "");
-
-      const price = document.createElement("strong");
-      price.className = "odds-price";
-      price.textContent = formatAmericanOdds(outcome.price);
-
-      const chance = document.createElement("span");
-      chance.className = "odds-probability";
-      chance.textContent = (probability * 100).toFixed(1) + "% implied";
-
-      const trend = document.createElement("span");
-      trend.className = "odds-trend trend-" + movement.direction;
-      trend.textContent = movement.label;
-
-      row.append(name, price, chance, trend);
-      section.appendChild(row);
-    });
-    return section;
-  }
-
-  function renderLiveEvents(events) {
-    liveGames.replaceChildren();
-    liveEmpty.hidden = events.length !== 0;
-    events.forEach(function (event) {
-      const card = document.createElement("article");
-      card.className = "panel live-card";
-
-      const header = document.createElement("div");
-      header.className = "live-card-header";
-      const status = document.createElement("span");
-      status.className = "event-status" + (event.inProgress ? " is-live" : "");
-      status.textContent = event.inProgress ? "Live now" : event.completed ? "Final" : "Upcoming";
-      const scheduled = document.createElement("span");
-      scheduled.className = "event-time";
-      scheduled.textContent = event.inProgress || event.completed
-        ? ""
-        : new Date(event.commenceTime).toLocaleString();
-      header.append(status, scheduled);
-
-      const matchup = document.createElement("div");
-      matchup.className = "matchup";
-      [event.awayTeam, event.homeTeam].forEach(function (team) {
-        const teamRow = document.createElement("div");
-        teamRow.className = "team-row";
-        const teamName = document.createElement("span");
-        teamName.textContent = team;
-        const score = document.createElement("strong");
-        const teamScore = (event.scores || []).find(function (item) { return item.name === team; });
-        score.textContent = teamScore ? teamScore.score : "—";
-        teamRow.append(teamName, score);
-        matchup.appendChild(teamRow);
-      });
-
-      const odds = createOdds(event, liveMarketSelect.value);
-      card.append(header, matchup, odds);
-      liveGames.appendChild(card);
-    });
-  }
-
-  function fetchLiveEvents() {
-    if (!sportSelect.value) {
+  function renderChart(history, currencyCode) {
+    const svg = document.getElementById("price-chart");
+    const empty = document.getElementById("chart-empty");
+    const range = document.getElementById("chart-range");
+    const recent = history.slice(-65);
+    if (recent.length < 2) {
+      svg.hidden = true;
+      range.hidden = true;
+      empty.hidden = false;
+      empty.textContent = "Not enough price history to draw a chart.";
       return;
     }
-    const requestId = ++liveRequestId;
-    const refreshButton = document.getElementById("refresh-live");
-    refreshButton.disabled = true;
-    liveStatus.textContent = "Updating scores and odds…";
-    const params = new URLSearchParams({
-      sport: sportSelect.value,
-      market: liveMarketSelect.value
-    });
 
-    fetch(apiUrl("/api/events?" + params.toString()))
-      .then(readApiResponse)
+    const width = 720;
+    const height = 250;
+    const padding = { top: 16, right: 12, bottom: 20, left: 12 };
+    const values = recent.map(function (item) { return item.close; });
+    const min = Math.min.apply(null, values);
+    const max = Math.max.apply(null, values);
+    const spread = max - min || max * 0.02 || 1;
+    const points = recent.map(function (item, index) {
+      const x = padding.left + index * (width - padding.left - padding.right) / (recent.length - 1);
+      const y = padding.top + (max - item.close) * (height - padding.top - padding.bottom) / spread;
+      return { x: x, y: y };
+    });
+    const path = points.map(function (point, index) {
+      return (index === 0 ? "M" : "L") + point.x.toFixed(2) + " " + point.y.toFixed(2);
+    }).join(" ");
+
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+    line.setAttribute("d", path);
+    line.setAttribute("class", "chart-line");
+    svg.appendChild(line);
+    svg.hidden = false;
+    empty.hidden = true;
+    range.hidden = false;
+    range.textContent = recent[0].date + "  ·  " +
+      formatCurrency(min, currencyCode) + " low  /  " +
+      formatCurrency(max, currencyCode) + " high  ·  " + recent[recent.length - 1].date;
+  }
+
+  function renderForecast(data) {
+    const forecastResults = document.getElementById("forecast-results");
+    forecastResults.replaceChildren();
+    data.forecast.forEach(function (item) {
+      const row = document.createElement("div");
+      row.className = "forecast-row";
+      const label = document.createElement("strong");
+      label.textContent = "Session " + item.session;
+      const point = document.createElement("span");
+      point.textContent = formatCurrency(item.price, data.currency);
+      const interval = document.createElement("small");
+      interval.textContent = formatCurrency(item.low, data.currency) + " - " +
+        formatCurrency(item.high, data.currency) + " (80% model range)";
+      row.append(label, point, interval);
+      forecastResults.appendChild(row);
+    });
+    document.getElementById("forecast-method").textContent =
+      "Based on " + data.model.returnObservations + " aligned historical daily returns. " +
+      data.model.comparables.length + " comparable securities included.";
+  }
+
+  function renderComparables(data) {
+    const container = document.getElementById("comparables");
+    container.replaceChildren();
+    data.comparables.forEach(function (item) {
+      const row = document.createElement("div");
+      row.className = "comparable-row";
+      const symbol = document.createElement("strong");
+      symbol.textContent = item.symbol;
+      const name = document.createElement("span");
+      name.textContent = item.name || item.symbol;
+      const change = document.createElement("span");
+      change.className = item.return > 0 ? "positive" : item.return < 0 ? "negative" : "";
+      change.textContent = formatPercent(item.return) + " over latest 20 sessions";
+      row.append(symbol, name, change);
+      container.appendChild(row);
+    });
+  }
+
+  function showEmptyMessage(container, message) {
+    container.replaceChildren();
+    const empty = document.createElement("p");
+    empty.className = "chart-empty";
+    empty.textContent = message;
+    container.appendChild(empty);
+  }
+
+  function renderStock(data) {
+    const overview = document.getElementById("stock-overview");
+    overview.hidden = false;
+    document.getElementById("company-name").textContent = data.name || data.symbol;
+    document.getElementById("quote-symbol").textContent = data.symbol;
+    document.getElementById("quote-price").textContent = formatCurrency(data.price, data.currency);
+    const quoteChange = document.getElementById("quote-change");
+    quoteChange.textContent = formatCurrency(data.change, data.currency) + " (" +
+      formatPercent(data.changePercent) + ") vs previous close";
+    quoteChange.classList.toggle("positive", data.change >= 0);
+    quoteChange.classList.toggle("negative", data.change < 0);
+    document.getElementById("quote-date").textContent = "As of " + data.priceDate;
+    document.getElementById("projection-change").textContent = formatPercent(data.projectionPercent);
+    document.getElementById("projection-price").textContent =
+      "Estimated two-session price: " + formatCurrency(data.forecast[1].price, data.currency);
+    const confidence = document.getElementById("model-confidence");
+    confidence.textContent = data.model.directionalAccuracy === null
+      ? "Not available"
+      : Math.round(data.model.directionalAccuracy * 100) + "%";
+    document.getElementById("confidence-detail").textContent =
+      data.model.directionalAccuracy === null
+        ? "Insufficient out-of-sample history for a stable estimate."
+        : "Directional accuracy over " + data.model.backtestCount + " past two-session tests; not a probability of future success.";
+    document.getElementById("market-updated").textContent =
+      "Market history retrieved " + new Date(data.updatedAt).toLocaleString();
+    renderChart(data.history, data.currency);
+    renderForecast(data);
+    renderComparables(data);
+    setMarketStatus("Showing latest available daily market history for " + data.symbol + ".", true);
+  }
+
+  function loadStock(symbol) {
+    const requestId = ++stockRequestId;
+    const normalized = symbol.trim().toUpperCase();
+    symbolInput.value = normalized;
+    document.getElementById("stock-submit").disabled = true;
+    setMarketStatus("Loading " + normalized + " and comparable historical prices...", true);
+    document.getElementById("market-updated").textContent = "";
+    document.getElementById("stock-overview").hidden = true;
+    document.getElementById("price-chart").hidden = true;
+    document.getElementById("chart-range").hidden = true;
+    document.getElementById("chart-empty").hidden = false;
+    document.getElementById("chart-empty").textContent = "Loading historical prices...";
+    showEmptyMessage(document.getElementById("forecast-results"), "Calculating the two-session projection...");
+    showEmptyMessage(document.getElementById("comparables"), "Loading comparable market history...");
+    apiRequest("/api/stocks?symbol=" + encodeURIComponent(normalized), "")
       .then(function (data) {
-        if (requestId !== liveRequestId) {
-          return;
+        if (requestId === stockRequestId) {
+          renderStock(data);
         }
-        renderLiveEvents(data.events || []);
-        setLiveStatus(data.warnings && data.warnings.length
-          ? data.warnings.join(" ")
-          : "Showing current provider data. Refresh to check for changes.", true);
-        lastUpdated.textContent = "Updated " + new Date(data.updatedAt).toLocaleTimeString();
       })
       .catch(function (error) {
-        if (requestId === liveRequestId) {
-          liveGames.replaceChildren();
-          liveEmpty.hidden = false;
-          setLiveStatus(getApiErrorMessage(error), false);
-          lastUpdated.textContent = "";
+        if (requestId === stockRequestId) {
+          setMarketStatus(error.message, false);
+          document.getElementById("stock-overview").hidden = true;
+          document.getElementById("chart-empty").hidden = false;
+          document.getElementById("chart-empty").textContent = "Market history is unavailable for this symbol.";
+          document.getElementById("price-chart").hidden = true;
+          showEmptyMessage(document.getElementById("forecast-results"), "Projection is unavailable.");
+          showEmptyMessage(document.getElementById("comparables"), "Comparable history is unavailable.");
         }
       })
       .then(function () {
-        if (requestId === liveRequestId) {
-          refreshButton.disabled = false;
+        if (requestId === stockRequestId) {
+          document.getElementById("stock-submit").disabled = false;
         }
       });
   }
 
-  function initializeLiveData() {
-    fetch(apiUrl("/api/status"))
-      .then(readApiResponse)
-      .then(function (status) {
-        if (!status.configured) {
-          setLiveStatus("The Worker does not have the provider key configured. Add THE_ODDS_API_KEY as a Worker secret.", false);
-          return null;
-        }
-        return fetch(apiUrl("/api/sports")).then(readApiResponse);
-      })
-      .then(function (data) {
-        if (!data) {
-          return;
-        }
-        sportSelect.replaceChildren();
-        data.sports.forEach(function (sport) {
-          const option = document.createElement("option");
-          option.value = sport.key;
-          option.textContent = sport.title;
-          sportSelect.appendChild(option);
-        });
-        sportSelect.disabled = data.sports.length === 0;
-        if (data.sports.length === 0) {
-          setLiveStatus("The provider has no active sports available right now.", true);
-          return;
-        }
-        setLiveStatus("Select a sport and refresh to load current scores and odds.", true);
-        fetchLiveEvents();
-      })
-      .catch(function (error) {
-        setLiveStatus(getApiErrorMessage(error), false);
-      });
+  function normalizeEmail(value) {
+    return value.trim().toLowerCase();
   }
 
   function showView() {
-    const requested = (window.location.hash || "#live").slice(1);
-    const views = document.querySelectorAll("[data-view]");
-    const exists = Array.prototype.some.call(views, function (view) {
-      return view.id === requested;
-    });
-    const current = exists ? requested : "live";
-
-    views.forEach(function (view) {
-      view.hidden = view.id !== current;
+    const requestedView = window.location.hash.slice(1);
+    const currentView = document.getElementById(requestedView) ? requestedView : "stocks";
+    document.querySelectorAll("[data-view]").forEach(function (view) {
+      view.hidden = view.id !== currentView;
     });
     document.querySelectorAll("nav a").forEach(function (link) {
-      if (link.getAttribute("href") === "#" + current) {
+      if (link.hash === "#" + currentView) {
         link.setAttribute("aria-current", "page");
       } else {
         link.removeAttribute("aria-current");
       }
     });
-    window.scrollTo(0, 0);
-    if (current === "account") {
-      loadAccount();
-    }
   }
 
-  gameSelect.addEventListener("change", renderAnalysis);
-  marketSelect.addEventListener("change", renderAnalysis);
-  sportSelect.addEventListener("change", fetchLiveEvents);
-  liveMarketSelect.addEventListener("change", fetchLiveEvents);
-  document.getElementById("refresh-live").addEventListener("click", fetchLiveEvents);
+  function setAccountMessage(message) {
+    document.getElementById("account-status").textContent = message;
+  }
+
+  function submitCredentials(action, button) {
+    const emailInput = document.getElementById("account-email");
+    const passwordInput = document.getElementById("account-password");
+    if (!emailInput.reportValidity() || !passwordInput.reportValidity()) {
+      return;
+    }
+    passwordInput.autocomplete = action === "register" ? "new-password" : "current-password";
+    button.disabled = true;
+    setAccountMessage(action === "register" ? "Creating account..." : "Signing in...");
+    apiRequest("/api/auth/" + action, "", {
+      method: "POST",
+      body: JSON.stringify({
+        email: normalizeEmail(emailInput.value),
+        password: passwordInput.value
+      })
+    }).then(function (session) {
+      localStorage.setItem(accountTokenKey, session.token);
+      passwordInput.value = "";
+      setAccountMessage("Signed in.");
+      return loadAccount();
+    }).catch(function (error) {
+      setAccountMessage(error.message);
+    }).then(function () {
+      button.disabled = false;
+    });
+  }
+
+  function loadAccount() {
+    const token = accountToken();
+    if (!token) {
+      displayAccount(false, "");
+      return Promise.resolve();
+    }
+    return apiRequest("/api/me", token).then(function (user) {
+      displayAccount(true, user.email);
+    }).catch(function (error) {
+      localStorage.removeItem(accountTokenKey);
+      displayAccount(false, "");
+      setAccountMessage(error.message || "Your session could not be verified. Sign in again.");
+    });
+  }
+
+  function initializeAccounts() {
+    document.getElementById("account-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      submitCredentials("login", event.currentTarget.querySelector('[data-action="login"]'));
+    });
+    document.getElementById("create-account").addEventListener("click", function (event) {
+      submitCredentials("register", event.currentTarget);
+    });
+    document.getElementById("sign-out").addEventListener("click", function () {
+      const token = accountToken();
+      apiRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
+        .then(function () {
+          localStorage.removeItem(accountTokenKey);
+          displayAccount(false, "");
+          setAccountMessage("Signed out.");
+        })
+        .catch(function (error) {
+          localStorage.removeItem(accountTokenKey);
+          displayAccount(false, "");
+          setAccountMessage("Signed out on this device; the server session could not be revoked: " + error.message);
+        });
+    });
+    document.getElementById("delete-account").addEventListener("click", function () {
+      if (!window.confirm("Permanently delete your account? This cannot be undone.")) {
+        return;
+      }
+      apiRequest("/api/account", accountToken(), { method: "DELETE" })
+        .then(function () {
+          localStorage.removeItem(accountTokenKey);
+          displayAccount(false, "");
+          setAccountMessage("Account deleted.");
+        })
+        .catch(function (error) {
+          setAccountMessage(error.message);
+        });
+    });
+    loadAccount();
+  }
+
+  document.getElementById("account-password").autocomplete = "current-password";
+  STOCKS.forEach(function (stock) {
+    const option = document.createElement("option");
+    option.value = stock.symbol;
+    option.label = stock.name;
+    document.getElementById("stock-symbols").appendChild(option);
+  });
+  stockForm.addEventListener("submit", function (event) {
+    event.preventDefault();
+    if (symbolInput.reportValidity()) {
+      loadStock(symbolInput.value);
+    }
+  });
   window.addEventListener("hashchange", showView);
-  renderAnalysis();
   showView();
-  initializeLiveData();
-  initializeAccount();
-})();
+  initializeAccounts();
+  loadStock(symbolInput.value);
+}());

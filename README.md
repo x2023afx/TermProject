@@ -1,40 +1,39 @@
-# Pace & Pattern
+# Northstar
 
-Pace & Pattern is a static sports-data explorer for the BSAD 281 term project. Its public Cloudflare Pages site requests current sports and odds data from a separate Cloudflare Worker. Username/password sign-in is optional and is only needed to use the online bet journal. The pages site and Worker must remain publicly reachable; do not put Cloudflare Access in front of either one.
+Northstar is a stock research prototype. It displays real daily market history, compares a selected stock with a small configured peer group, and calculates a two-session statistical projection. It is not a brokerage, a real-time quote service, or a source of personalized financial advice.
 
-## Features and data
+## Market data and projection
 
-- The game board loads active sports, current scores, and available odds through the Worker. Live coverage depends on the provider and sport; unavailable data is reported rather than replaced with sample values.
-- The Patterns section is an illustrative, fictional historical sample. It is not derived from the live feed, a verified historical dataset, or a predictive model.
-- Signed-out visitors can browse the entire site. Users may optionally create an account with a username and password to keep a personal bet journal in the Worker’s Cloudflare D1 database. The previous email magic-link endpoints remain in the Worker for future use.
-- The journal is manually entered. It does not connect to sportsbooks, import or verify wagers or outcomes, or provide betting advice.
+- The Cloudflare Worker retrieves daily chart history from Yahoo Finance. No market-data API key is required. Availability, coverage, and latency are controlled by that upstream service; the most recent available daily close may be delayed.
+- Known tickers use comparison securities configured in `worker.js`. Other valid symbols use SPY and QQQ as broad-market comparators.
+- The projection blends the selected stock's mean daily return over the latest 60 aligned observations (60%) with the mean of available comparables' returns (40%), then compounds the blended mean for two sessions.
+- The displayed confidence is the directional accuracy from up to 60 rolling out-of-sample, two-session historical tests. It is not the probability that the next projection will be right. The price range uses the historical dispersion of blended daily returns and is also not a guarantee.
+- The model does not account for news, earnings, macroeconomic events, fees, or trading constraints. Use the site for research and education, not as a recommendation to trade.
 
-## Public site and Worker deployment
+## Deploy the public site and API
 
-The current public site is <https://morgagemypyarlay.pages.dev>. The frontend is plain HTML, CSS, and JavaScript with no build step.
+The frontend is plain HTML, CSS, and JavaScript with no build step.
 
-1. Publish the repository root as the Cloudflare Pages site (or connect the repository to Pages with the root directory as the project root). `index.html` is the entry point.
-2. Deploy `worker.js` to the Worker named `pace-pattern-private`. Its API base URL is configured in `data.js` as `https://pace-pattern-private.x2023afx.workers.dev`.
-3. Configure the Worker variables `CORS_ORIGIN=https://morgagemypyarlay.pages.dev` and `SITE_URL=https://morgagemypyarlay.pages.dev`. The Worker only permits the configured site origin for browser requests, and uses `SITE_URL` when generating email callback links.
-4. Configure the Worker’s `THE_ODDS_API_KEY` secret for The Odds API. Do not put provider keys in frontend files or commit them.
-5. To enable the optional account feature, bind the D1 database as `DB`, apply `schema.sql` to a new database, and set `ACCOUNTS_ENABLED=true`. For a database that already has the original `users` table, run `migrations/0002_username_password.sql` once against it before deploying the updated Worker. The migration adds columns without rebuilding the users table, preserving existing users, sessions, and bet records. Passwords are hashed in the Worker with PBKDF2-SHA-256 and a unique random salt. The email magic-link routes are retained for later; to use them, also configure `RESEND_API_KEY` as a Worker secret and `RESEND_FROM_EMAIL` as a verified sender address. Keep the API key private and never add it to the repository. The account feature requires D1, but the live sports API does not require users to sign in.
-6. Keep the Pages site and Worker public, without Cloudflare Access policies. The Worker’s application routes enforce account authentication; CORS is configured for the public site.
+1. Publish the repository root as the Cloudflare Pages site. `index.html` is the entry point.
+2. Deploy `worker.js` to the Worker named `pace-pattern-private` (or update `STARTUP.apiBaseUrl` in `data.js` to the new Worker URL).
+3. Configure `CORS_ORIGIN` on the Worker to the exact public Pages origin. The existing public site is `https://morgagemypyarlay.pages.dev`.
+4. To enable account sign-in, bind the existing Cloudflare D1 database as `DB` and set `ACCOUNTS_ENABLED=true`. Do not replace or recreate a database containing existing data. The current schema and migration preserve existing account rows; for a database that has the original `users` table but has not had username/password columns added, run `migrations/0002_username_password.sql` once before deployment.
+5. The app validates email syntax and creates email/password accounts directly in D1. It does not send confirmation, login, or other email. Passwords are stored as salted PBKDF2-SHA-256 hashes, never as plain text. An email address is not proof of identity because ownership is not verified.
 
-The frontend checks `/api/status` and displays connection errors when the Worker, provider key, CORS configuration, or upstream sports service is unavailable. Account setup failures only affect signing in and journal access; they should not prevent browsing live sports data.
+The stock research page works without an account. Accounts are only for sign-in and account management. The Worker does not submit trades or store a portfolio.
 
-## Account and journal privacy
+## Privacy and account data
 
-Signing in is optional. Username accounts store your username, a salted password hash, and bet records in the Worker’s D1 database. The retained email-link flow sends the requested address to the Worker and Resend if it is enabled. Session credentials are kept in this browser’s local storage; sign out on shared devices. The account page provides a control to permanently delete the account and its bet records. Avoid recording information you do not want stored by the service.
+Email addresses, password hashes, sessions, and account rate-limit hashes are stored in the bound D1 database. Session tokens are kept in this browser's local storage; sign out on shared devices. The account page can delete the account. Existing sports-journal tables in a previously provisioned D1 database are left untouched by the application.
 
 ## Files
 
 | File | Purpose |
 |---|---|
-| `index.html` | Site structure, navigation, and account forms |
+| `index.html` | Stock research, projection, account, and methodology views |
 | `styles.css` | Responsive visual design |
-| `data.js` | Illustrative pattern examples and Worker API URL |
-| `app.js` | Live API requests, account sign-in, and journal UI |
-| `worker.js` | Sports API proxy and optional authenticated account API |
-| `schema.sql` | D1 tables for username/password accounts, retained email sign-in, and user bet records |
-| `project-notes/PROJECT_LOG.md` | Team prompts, problems, and decisions |
-| `project-notes/BUSINESS_CASE.md` | Business reasoning for the project |
+| `data.js` | Stock suggestions and Worker API URL |
+| `app.js` | Market-data and account UI |
+| `worker.js` | Yahoo Finance data proxy, projection algorithm, and account API |
+| `schema.sql` | D1 schema for new installations |
+| `migrations/0002_username_password.sql` | Adds password-account columns to the original users table |
