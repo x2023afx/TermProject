@@ -1,11 +1,12 @@
 "use strict";
 
-const YAHOO_CHART_ROOT = "https://query1.finance.yahoo.com/v8/finance/chart/";
+const ALPHA_VANTAGE_QUERY_URL = "https://www.alphavantage.co/query";
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 600000;
 const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
 const SYMBOL_PATTERN = /^[A-Z0-9.^=-]{1,12}$/;
 const EMAIL_PATTERN = /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
+const STOCK_CACHE_TTL_SECONDS = 3600;
 const COMPARABLES = {
   AAPL: ["MSFT", "GOOGL", "QQQ"],
   MSFT: ["AAPL", "GOOGL", "QQQ"],
@@ -104,6 +105,14 @@ function validPassword(value) {
   return typeof value === "string" && value.length >= 12 && value.length <= 128;
 }
 
+async function workerSecret(env, name) {
+  let value = env[name];
+  if (value && typeof value.get === "function") {
+    value = await value.get();
+  }
+  return typeof value === "string" ? value.trim() : "";
+}
+
 function randomSalt() {
   return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
@@ -163,46 +172,60 @@ async function getSession(request, env) {
   ).bind(tokenHash, Date.now()).first();
 }
 
-async function fetchStockHistory(symbol) {
-  const url = new URL(YAHOO_CHART_ROOT + encodeURIComponent(symbol));
-  url.searchParams.set("range", "1y");
-  url.searchParams.set("interval", "1d");
-  const response = await fetch(url.toString(), {
-    headers: { "accept": "application/json" }
-  });
+async function fetchStockHistory(symbol, apiKey) {
+  const cacheKey = new Request("https://northstar-stock-cache.invalid/" + encodeURIComponent(symbol));
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  if (cache) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return cached.json();
+    }
+  }
+
+  const url = new URL(ALPHA_VANTAGE_QUERY_URL);
+  url.searchParams.set("function", "TIME_SERIES_DAILY");
+  url.searchParams.set("symbol", symbol);
+  url.searchParams.set("outputsize", "compact");
+  url.searchParams.set("apikey", apiKey);
+  const response = await fetch(url.toString(), { headers: { "accept": "application/json" } });
   if (!response.ok) {
     throw new Error("Market data provider returned HTTP " + response.status + " for " + symbol + ".");
   }
   const payload = await response.json();
-  const result = payload && payload.chart && payload.chart.result && payload.chart.result[0];
-  if (!result || !Array.isArray(result.timestamp)) {
-    const message = payload && payload.chart && payload.chart.error && payload.chart.error.description;
-    throw new Error(message || "No historical market data is available for " + symbol + ".");
+  if (payload && (payload.Note || payload.Information)) {
+    throw new Error("Alpha Vantage request limit or access restriction reached. Try again later.");
   }
-  const quote = result.indicators && result.indicators.quote && result.indicators.quote[0];
-  const closes = quote && quote.close;
-  if (!Array.isArray(closes)) {
-    throw new Error("Historical closing prices are unavailable for " + symbol + ".");
+  if (payload && payload["Error Message"]) {
+    throw new Error("Alpha Vantage could not find historical data for " + symbol + ".");
   }
-  const history = [];
-  result.timestamp.forEach(function (timestamp, index) {
-    const close = closes[index];
-    if (Number.isFinite(close) && close > 0) {
-      history.push({
-        date: new Date(timestamp * 1000).toISOString().slice(0, 10),
-        close: close
-      });
-    }
+  const series = payload && payload["Time Series (Daily)"];
+  if (!series || typeof series !== "object") {
+    throw new Error("Alpha Vantage returned no daily prices for " + symbol + ".");
+  }
+  const history = Object.keys(series).sort().map(function (date) {
+    const close = Number(series[date]["4. close"]);
+    return { date: date, close: close };
+  }).filter(function (item) {
+    return Number.isFinite(item.close) && item.close > 0;
   });
   if (history.length < 30) {
     throw new Error("Not enough daily price history is available for " + symbol + ".");
   }
-  return {
+  const stock = {
     symbol: symbol,
-    name: (result.meta && (result.meta.longName || result.meta.shortName)) || symbol,
-    currency: (result.meta && result.meta.currency) || "USD",
+    name: symbol,
+    currency: "USD",
     history: history
   };
+  if (cache) {
+    await cache.put(cacheKey, new Response(JSON.stringify(stock), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=" + STOCK_CACHE_TTL_SECONDS
+      }
+    }));
+  }
+  return stock;
 }
 
 function mean(values) {
@@ -335,20 +358,29 @@ function buildStockResponse(symbol, target, peerData) {
 
 async function handleApi(request, url, env) {
   if (url.pathname === "/api/status" && request.method === "GET") {
+    const apiKey = await workerSecret(env, "ALPHA_VANTAGE_API_KEY");
     return {
-      body: { provider: "Yahoo Finance chart data", accountsConfigured: accountsEnabled(env) },
+      body: {
+        provider: "Alpha Vantage",
+        marketDataConfigured: Boolean(apiKey),
+        accountsConfigured: accountsEnabled(env)
+      },
       status: 200
     };
   }
 
   if (url.pathname === "/api/stocks" && request.method === "GET") {
+    const apiKey = await workerSecret(env, "ALPHA_VANTAGE_API_KEY");
+    if (!apiKey) {
+      return jsonError("Stock market data is not configured. Add ALPHA_VANTAGE_API_KEY as a Worker secret.", 503);
+    }
     const symbol = (url.searchParams.get("symbol") || "").trim().toUpperCase();
     if (!SYMBOL_PATTERN.test(symbol)) {
       return jsonError("Enter a valid stock symbol using letters, numbers, dots, carets, or hyphens.", 400);
     }
     const peers = COMPARABLES[symbol] || ["SPY", "QQQ"];
     const results = await Promise.allSettled(
-      [symbol].concat(peers).map(function (ticker) { return fetchStockHistory(ticker); })
+      [symbol].concat(peers).map(function (ticker) { return fetchStockHistory(ticker, apiKey); })
     );
     if (results[0].status === "rejected") {
       return jsonError("Could not load " + symbol + ": " + results[0].reason.message, 502);
