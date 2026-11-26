@@ -81,29 +81,27 @@
 
   function renderLookupHistory() {
     const history = readLookupHistory();
-    [document.getElementById("profile-menu-lookups"), document.getElementById("account-lookups")]
-      .forEach(function (container) {
-        container.replaceChildren();
-        if (!history.length) {
-          const empty = document.createElement("p");
-          empty.className = "profile-menu-empty";
-          empty.textContent = "Your successful stock lookups will appear here.";
-          container.appendChild(empty);
-          return;
-        }
-        history.forEach(function (symbol) {
-          const button = document.createElement("button");
-          button.type = "button";
-          button.className = "profile-lookup";
-          button.textContent = symbol;
-          button.addEventListener("click", function () {
-            closeProfileMenu();
-            window.location.hash = "stocks";
-            loadStock(symbol);
-          });
-          container.appendChild(button);
-        });
+    const container = document.getElementById("account-lookups");
+    container.replaceChildren();
+    if (!history.length) {
+      const empty = document.createElement("p");
+      empty.className = "profile-menu-empty";
+      empty.textContent = "Your successful stock lookups will appear here.";
+      container.appendChild(empty);
+      return;
+    }
+    history.forEach(function (symbol) {
+      const button = document.createElement("button");
+      button.type = "button";
+      button.className = "profile-lookup";
+      button.textContent = symbol;
+      button.addEventListener("click", function () {
+        closeProfileMenu();
+        window.location.hash = "stocks";
+        loadStock(symbol);
       });
+      container.appendChild(button);
+    });
   }
 
   function saveLookup(symbol) {
