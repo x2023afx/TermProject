@@ -497,7 +497,32 @@
     const form = document.getElementById("personal-info-form");
     const fields = ["fullName", "phone", "streetAddress", "city", "region", "postalCode", "country"];
     fields.forEach(function (field) {
-      form.elements.namedItem(field).value = profile && typeof profile[field] === "string" ? profile[field] : "";
+      const input = form.elements.namedItem(field);
+      input.value = profile && typeof profile[field] === "string" ? profile[field] : "";
+      if (input.dataset.format) {
+        formatNumericField(input);
+      }
+    });
+  }
+
+  function formatNumericField(input) {
+    const digits = input.value.replace(/\D/g, "").slice(0, input.dataset.format === "phone" ? 10 : 6);
+    if (input.dataset.format === "phone") {
+      input.value = digits.length > 6
+        ? digits.slice(0, 3) + "-" + digits.slice(3, 6) + "-" + digits.slice(6)
+        : digits.length > 3
+          ? digits.slice(0, 3) + "-" + digits.slice(3)
+          : digits;
+    } else {
+      input.value = digits.length > 3 ? digits.slice(0, 3) + "-" + digits.slice(3) : digits;
+    }
+  }
+
+  function initializeNumericFields() {
+    document.querySelectorAll('input[data-format="phone"], input[data-format="zip"]').forEach(function (input) {
+      input.addEventListener("input", function () {
+        formatNumericField(input);
+      });
     });
   }
 
@@ -531,6 +556,7 @@
     const isRegister = mode === "register";
     form.dataset.mode = isRegister ? "register" : "login";
     signupDetails.disabled = !isRegister;
+    signupDetails.hidden = !isRegister;
     signupDetails.querySelectorAll("input").forEach(function (input) {
       input.required = isRegister;
     });
@@ -686,6 +712,7 @@
 
   document.getElementById("account-password").autocomplete = "current-password";
   setAccountFormMode("login");
+  initializeNumericFields();
   initializeSettings();
   STOCKS.forEach(function (stock) {
     const option = document.createElement("option");

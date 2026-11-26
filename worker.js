@@ -113,6 +113,14 @@ function validRequiredProfileField(value, maxLength) {
   return validProfileField(value, maxLength) && value.trim().length > 0;
 }
 
+function validPhone(value) {
+  return typeof value === "string" && /^\d{3}-\d{3}-\d{4}$/.test(value);
+}
+
+function validZipCode(value) {
+  return typeof value === "string" && /^\d{3}-\d{3}$/.test(value);
+}
+
 function randomSalt() {
   return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
@@ -429,8 +437,8 @@ async function handleApi(request, url, env) {
     if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
       profileFields.some(function (field) {
         return !validRequiredProfileField(profile[field[0]], field[1]);
-      })) {
-      return jsonError("Complete all required personal information fields.", 400);
+      }) || !validPhone(profile.phone) || !validZipCode(profile.postalCode)) {
+      return jsonError("Complete all required fields. Phone must be 000-000-0000 and ZIP code must be 000-000.", 400);
     }
     const now = Date.now();
     if (!await allowAuthRequest(emailInput, request, env, now)) {
@@ -554,8 +562,9 @@ async function handleApi(request, url, env) {
     if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
       fields.some(function (field) {
         return !validProfileField(profile[field[0]], field[1]);
-      })) {
-      return jsonError("Enter profile details within the allowed field lengths.", 400);
+      }) || (profile.phone.trim() && !validPhone(profile.phone.trim())) ||
+      (profile.postalCode.trim() && !validZipCode(profile.postalCode.trim()))) {
+      return jsonError("Check profile field lengths. Phone must be 000-000-0000 and ZIP code must be 000-000.", 400);
     }
     const values = fields.map(function (field) { return profile[field[0]].trim() || null; });
     const update = env.DB.prepare(
