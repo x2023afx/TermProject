@@ -28,8 +28,7 @@
     </a>
     <nav aria-label="Main navigation">
       <a href="#stocks">Stock research</a>
-      <a href="#market-movers">Market movers</a>
-      <a href="#account">Account</a>
+      <a href="#market-movers">Popular stocks</a>
       <a href="#about">Methodology</a>
     </nav>
     <span id="data-badge" class="data-badge"><span aria-hidden="true"></span> Checking market data</span>
@@ -45,6 +44,7 @@
           <span>Signed in</span>
         </div>
         <button type="button" class="profile-menu-link" data-profile-target="lookup-history">History</button>
+        <a href="#account" class="profile-menu-link" data-profile-target="account-home">Account</a>
         <a href="#account" class="profile-menu-link" data-profile-target="personal-info">Personal info</a>
         <a href="#account" class="profile-menu-link" data-profile-target="account-settings">Settings</a>
       </div>
@@ -156,7 +156,7 @@
     <section id="market-movers" data-view hidden>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Market movers</p>
+          <p class="eyebrow">Popular stocks</p>
           <h1>Popular stocks, ranked by performance.</h1>
           <p class="lead">Compare recent price returns across a selection of widely followed stocks and ETFs.</p>
         </div>
@@ -206,7 +206,7 @@
     </section>
 
     <section id="account" data-view hidden>
-      <div class="page-heading">
+      <div id="account-home" class="page-heading">
         <div>
           <p class="eyebrow">Your CrystalBallStocks account</p>
           <h1>Sign in without email confirmation.</h1>
