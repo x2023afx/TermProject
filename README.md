@@ -4,6 +4,8 @@ CrystalBallStocks is a stock research prototype. It displays real daily market h
 
 The Popular stocks tab ranks a selection of widely followed stocks and ETFs by historical price performance over a selectable timeframe (one week through five years). It also charts relative returns for the five leading performers; it does not rank trading volume or predict future returns.
 
+The stock research chart can compare a selected stock with the S&P 500 (SPY) or Nasdaq-100 (QQQ) over the same dates. A browser-local watchlist saves up to eight symbols and shows latest prices, daily changes, and returns over a selectable period; watchlist data does not sync across browsers or devices.
+
 ## Market data and projection
 
 - The Cloudflare Worker retrieves up to five years of daily historical prices and live ticker/company-name search suggestions from Yahoo Finance. No API key is required. These are unofficial endpoints and may be rate-limited or changed by Yahoo; data can be delayed.

@@ -4,7 +4,7 @@ Keep this up to date as you go — a few lines per work session is enough. It's 
 
 **Team name:** Nicholas Bergen
 **Startup name:** CrystalBallStocks
-**Live site link:** https://crystalballstocks.pages.dev/#account
+**Live site link:** https://crystalballstocks.pages.dev/
 
 ---
 
@@ -15,6 +15,18 @@ Copy this block for each session.
 ### Session — [date] — driver: [first name]
 
 - **Goal for this session:**
+- **Key prompts we gave Copilot** (paste the important ones):
+  1.
+  2.
+- **What worked:**
+- **What broke, and how we fixed it:**
+- **Committed?** yes / no — commit message:
+
+---
+
+### Session — 11/16/26 — driver: Nicholas Bergen
+
+- **Goal for this session:** add more features and fake adds 
 - **Key prompts we gave Copilot** (paste the important ones):
   1.
   2.

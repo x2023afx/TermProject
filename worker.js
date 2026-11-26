@@ -445,6 +445,61 @@ async function handleApi(request, url, env) {
     return { body: buildStockResponse(symbol, target, peerData), status: 200 };
   }
 
+  if (url.pathname === "/api/history" && request.method === "GET") {
+    const symbol = (url.searchParams.get("symbol") || "").trim().toUpperCase();
+    if (!SYMBOL_PATTERN.test(symbol)) {
+      return jsonError("Enter a valid stock symbol.", 400);
+    }
+    const stock = await fetchStockHistory(symbol);
+    return {
+      body: { symbol: stock.symbol, name: stock.name, currency: stock.currency, history: stock.history },
+      status: 200
+    };
+  }
+
+  if (url.pathname === "/api/watchlist" && request.method === "GET") {
+    const symbols = Array.from(new Set((url.searchParams.get("symbols") || "")
+      .split(",").map(function (symbol) { return symbol.trim().toUpperCase(); }).filter(Boolean)));
+    const period = url.searchParams.get("period") || "3m";
+    if (!symbols.length || symbols.length > 8 || symbols.some(function (symbol) {
+      return !SYMBOL_PATTERN.test(symbol);
+    })) {
+      return jsonError("Choose between 1 and 8 valid stock symbols.", 400);
+    }
+    if (!Object.prototype.hasOwnProperty.call(MARKET_MOVER_RANGE_COUNTS, period)) {
+      return jsonError("Choose a supported watchlist timeframe.", 400);
+    }
+    const results = await Promise.allSettled(symbols.map(function (symbol) {
+      return fetchStockHistory(symbol);
+    }));
+    const stocks = [];
+    const unavailable = [];
+    results.forEach(function (result, index) {
+      if (result.status !== "fulfilled") {
+        unavailable.push(symbols[index]);
+        return;
+      }
+      const history = result.value.history;
+      const recent = history.slice(-(MARKET_MOVER_RANGE_COUNTS[period] + 1));
+      const start = recent[0];
+      const latest = history[history.length - 1];
+      const previous = history.length > 1 ? history[history.length - 2] : latest;
+      stocks.push({
+        symbol: result.value.symbol,
+        name: result.value.name,
+        currency: result.value.currency,
+        price: latest.close,
+        priceDate: latest.date,
+        dailyChange: latest.close / previous.close - 1,
+        periodReturn: latest.close / start.close - 1
+      });
+    });
+    return {
+      body: { stocks: stocks, unavailable: unavailable, updatedAt: new Date().toISOString() },
+      status: 200
+    };
+  }
+
   if (url.pathname === "/api/stock-search" && request.method === "GET") {
     const query = (url.searchParams.get("q") || "").trim();
     if (query.length < 2 || query.length > 80) {

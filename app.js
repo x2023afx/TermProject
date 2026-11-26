@@ -3,8 +3,10 @@
 
   const accountTokenKey = "northstarAccountToken";
   const lookupHistoryKey = "northstarLookupHistory";
+  const watchlistKey = "crystalballstocksWatchlist";
   const settingsKey = "northstarSettings";
   const maxLookups = 10;
+  const maxWatchlistStocks = 8;
   const currencies = {
     AUD: "Australian Dollar", BRL: "Brazilian Real", CAD: "Canadian Dollar",
     CHF: "Swiss Franc", CNY: "Chinese Renminbi Yuan", CZK: "Czech Koruna",
@@ -26,7 +28,13 @@
   let stockSearchTimer = null;
   let accountSignedIn = false;
   let currentStockData = null;
+  let currentChartCurrency = "USD";
+  let currentChartExchangeRate = 1;
   let stockRenderId = 0;
+  let benchmarkHistory = null;
+  let benchmarkLoadedSymbol = "";
+  let benchmarkRequestId = 0;
+  let watchlistRequestId = 0;
   let marketMoversRequestId = 0;
   let marketMoversLoadedPeriod = "";
   let marketMoversLoadingPeriod = "";
@@ -207,6 +215,135 @@
     renderLookupHistory();
   }
 
+  function readWatchlist() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(watchlistKey) || "[]");
+      return Array.isArray(saved)
+        ? saved.filter(function (symbol) {
+          return typeof symbol === "string" && /^[A-Z0-9.^=-]{1,12}$/.test(symbol);
+        }).filter(function (symbol, index, list) {
+          return list.indexOf(symbol) === index;
+        }).slice(0, maxWatchlistStocks)
+        : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function saveWatchlist(symbols) {
+    try {
+      localStorage.setItem(watchlistKey, JSON.stringify(symbols.slice(0, maxWatchlistStocks)));
+      return true;
+    } catch (error) {
+      document.getElementById("watchlist-status").textContent =
+        "Could not save your watchlist in this browser.";
+      return false;
+    }
+  }
+
+  function updateWatchlistToggle() {
+    const button = document.getElementById("watchlist-toggle");
+    const symbol = currentStockData && currentStockData.symbol;
+    const saved = symbol && readWatchlist().indexOf(symbol) !== -1;
+    button.disabled = !symbol;
+    button.textContent = saved ? "Remove from watchlist" : "Add to watchlist";
+    button.setAttribute("aria-pressed", String(Boolean(saved)));
+  }
+
+  function renderWatchlist(stocks) {
+    const list = document.getElementById("watchlist-list");
+    list.replaceChildren();
+    if (!stocks.length) {
+      const empty = document.createElement("p");
+      empty.className = "chart-empty";
+      empty.textContent = "Add a stock from its quote card to start your watchlist.";
+      list.appendChild(empty);
+      return;
+    }
+    stocks.forEach(function (stock) {
+      const row = document.createElement("article");
+      row.className = "watchlist-row";
+      const open = document.createElement("button");
+      open.type = "button";
+      open.className = "watchlist-stock";
+      open.setAttribute("aria-label", "Analyze " + stock.symbol);
+      const identity = document.createElement("span");
+      identity.className = "watchlist-identity";
+      const symbol = document.createElement("strong");
+      symbol.textContent = stock.symbol;
+      const name = document.createElement("small");
+      name.textContent = stock.name || stock.symbol;
+      identity.append(symbol, name);
+      const price = document.createElement("span");
+      price.className = "watchlist-price";
+      price.textContent = formatCurrency(stock.price, stock.currency);
+      const daily = document.createElement("small");
+      daily.className = stock.dailyChange > 0 ? "positive" : stock.dailyChange < 0 ? "negative" : "";
+      daily.textContent = formatPercent(stock.dailyChange) + " today";
+      const period = document.createElement("strong");
+      period.className = stock.periodReturn > 0 ? "positive" : stock.periodReturn < 0 ? "negative" : "";
+      period.textContent = formatPercent(stock.periodReturn);
+      open.append(identity, price, daily, period);
+      open.addEventListener("click", function () {
+        symbolInput.value = stock.symbol;
+        window.location.hash = "stocks";
+        loadStock(stock.symbol);
+      });
+      const remove = document.createElement("button");
+      remove.type = "button";
+      remove.className = "text-button";
+      remove.textContent = "Remove";
+      remove.setAttribute("aria-label", "Remove " + stock.symbol + " from watchlist");
+      remove.addEventListener("click", function () {
+        const next = readWatchlist().filter(function (savedSymbol) {
+          return savedSymbol !== stock.symbol;
+        });
+        if (saveWatchlist(next)) {
+          updateWatchlistToggle();
+          loadWatchlist();
+        }
+      });
+      row.append(open, remove);
+      list.appendChild(row);
+    });
+  }
+
+  function loadWatchlist() {
+    const symbols = readWatchlist();
+    const status = document.getElementById("watchlist-status");
+    const list = document.getElementById("watchlist-list");
+    const requestId = ++watchlistRequestId;
+    if (!symbols.length) {
+      status.textContent = "";
+      renderWatchlist([]);
+      return;
+    }
+    status.textContent = "Loading latest watchlist prices...";
+    showEmptyMessage(list, "Loading saved stocks...");
+    const period = document.getElementById("watchlist-period").value;
+    apiRequest("/api/watchlist?symbols=" + encodeURIComponent(symbols.join(",")) +
+      "&period=" + encodeURIComponent(period), "")
+      .then(function (data) {
+        if (requestId !== watchlistRequestId) {
+          return;
+        }
+        if (!data.stocks.length && data.unavailable.length) {
+          showEmptyMessage(list, "Could not load saved stock prices. Try again later.");
+        } else {
+          renderWatchlist(data.stocks);
+        }
+        status.textContent = "Prices as of " + new Date(data.updatedAt).toLocaleString() +
+          (data.unavailable.length ? " · Could not load " + data.unavailable.join(", ") + "." : "") +
+          " · period return: " + document.getElementById("watchlist-period").selectedOptions[0].textContent;
+      })
+      .catch(function (error) {
+        if (requestId === watchlistRequestId) {
+          status.textContent = error.message;
+          showEmptyMessage(list, "Watchlist prices are unavailable right now.");
+        }
+      });
+  }
+
   function closeProfileMenu() {
     const menu = document.getElementById("profile-menu");
     menu.hidden = true;
@@ -280,10 +417,12 @@
     return (value > 0 ? "+" : "") + (value * 100).toFixed(2) + "%";
   }
 
-  function renderChart(history, currencyCode, exchangeRate) {
+  function renderChart(history, currencyCode, exchangeRate, comparisonHistory, comparisonSymbol) {
     const svg = document.getElementById("price-chart");
     const empty = document.getElementById("chart-empty");
     const range = document.getElementById("chart-range");
+    const legend = document.getElementById("benchmark-legend");
+    const benchmarkStatus = document.getElementById("benchmark-status");
     const settings = readSettings();
     const rangeCounts = { "1w": 5, "1m": 22, "3m": 65, "6m": 130, "1y": 260, "5y": 1300 };
     const recent = history.slice(-rangeCounts[settings.dateRange]);
@@ -293,6 +432,7 @@
     if (recent.length < 2) {
       svg.hidden = true;
       range.hidden = true;
+      legend.hidden = true;
       empty.hidden = false;
       empty.textContent = "Not enough price history to draw a chart.";
       return;
@@ -301,32 +441,99 @@
     const width = 720;
     const height = 250;
     const padding = { top: 16, right: 12, bottom: 20, left: 12 };
-    const values = recent.map(function (item) { return item.close * (exchangeRate || 1); });
+    const benchmarkByDate = new Map((comparisonHistory || []).map(function (item) {
+      return [item.date, item.close];
+    }));
+    const shared = comparisonSymbol && comparisonSymbol !== "none"
+      ? recent.filter(function (item) { return benchmarkByDate.has(item.date); })
+      : [];
+    const compared = shared.length >= 2;
+    const chartItems = compared ? shared : recent;
+    const targetValues = compared
+      ? chartItems.map(function (item) { return item.close / chartItems[0].close - 1; })
+      : chartItems.map(function (item) { return item.close * (exchangeRate || 1); });
+    const benchmarkValues = compared
+      ? chartItems.map(function (item) {
+        return benchmarkByDate.get(item.date) / benchmarkByDate.get(chartItems[0].date) - 1;
+      })
+      : [];
+    const values = targetValues.concat(benchmarkValues);
     const min = Math.min.apply(null, values);
     const max = Math.max.apply(null, values);
-    const spread = max - min || max * 0.02 || 1;
-    const points = recent.map(function (item, index) {
-      const x = padding.left + index * (width - padding.left - padding.right) / (recent.length - 1);
-      const y = padding.top + (max - item.close * (exchangeRate || 1)) *
+    const spread = max - min || (compared ? 0.02 : max * 0.02) || 1;
+    function makePath(series) {
+      return series.map(function (value, index) {
+        const x = padding.left + index * (width - padding.left - padding.right) / (series.length - 1);
+        const y = padding.top + (max - value) *
         (height - padding.top - padding.bottom) / spread;
-      return { x: x, y: y };
-    });
-    const path = points.map(function (point, index) {
-      return (index === 0 ? "M" : "L") + point.x.toFixed(2) + " " + point.y.toFixed(2);
-    }).join(" ");
+        return (index === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2);
+      }).join(" ");
+    }
 
     svg.replaceChildren();
     svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    if (compared) {
+      const zeroLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const zeroY = padding.top + (max / spread) * (height - padding.top - padding.bottom);
+      zeroLine.setAttribute("x1", String(padding.left));
+      zeroLine.setAttribute("x2", String(width - padding.right));
+      zeroLine.setAttribute("y1", zeroY.toFixed(2));
+      zeroLine.setAttribute("y2", zeroY.toFixed(2));
+      zeroLine.setAttribute("class", "benchmark-zero-line");
+      svg.appendChild(zeroLine);
+    }
     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
-    line.setAttribute("d", path);
+    line.setAttribute("d", makePath(targetValues));
     line.setAttribute("class", "chart-line");
     svg.appendChild(line);
+    if (compared) {
+      const benchmarkLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      benchmarkLine.setAttribute("d", makePath(benchmarkValues));
+      benchmarkLine.setAttribute("class", "benchmark-chart-line");
+      svg.appendChild(benchmarkLine);
+    }
     svg.hidden = false;
     empty.hidden = true;
     range.hidden = false;
-    range.textContent = recent[0].date + "  ·  " +
-      formatCurrency(min, currencyCode) + " low  /  " +
-      formatCurrency(max, currencyCode) + " high  ·  " + recent[recent.length - 1].date;
+    if (compared) {
+      const symbol = symbolInput.value.trim().toUpperCase();
+      const targetReturn = targetValues[targetValues.length - 1];
+      const benchmarkReturn = benchmarkValues[benchmarkValues.length - 1];
+      range.textContent = chartItems[0].date + "  ·  " + symbol + " " + formatPercent(targetReturn) +
+        "  /  " + comparisonSymbol + " " + formatPercent(benchmarkReturn) + "  ·  " +
+        chartItems[chartItems.length - 1].date;
+      legend.replaceChildren();
+      [
+        { label: symbol, className: "chart-legend-stock" },
+        { label: comparisonSymbol, className: "chart-legend-benchmark" }
+      ].forEach(function (item) {
+        const entry = document.createElement("span");
+        entry.className = "chart-legend-item";
+        const marker = document.createElement("span");
+        marker.className = item.className;
+        marker.setAttribute("aria-hidden", "true");
+        entry.append(marker, document.createTextNode(item.label));
+        legend.appendChild(entry);
+      });
+      legend.hidden = false;
+      document.getElementById("chart-range-label").textContent =
+        "Relative price performance · both indexed to 0% on the first shared trading day";
+      benchmarkStatus.textContent = "Comparing with " +
+        (comparisonSymbol === "SPY" ? "the S&P 500" : "the Nasdaq-100") + ".";
+    } else {
+      legend.hidden = true;
+      range.textContent = chartItems[0].date + "  ·  " +
+        formatCurrency(min, currencyCode) + " low  /  " +
+        formatCurrency(max, currencyCode) + " high  ·  " + chartItems[chartItems.length - 1].date;
+      document.getElementById("chart-range-label").textContent =
+        "Daily closing prices · past " + settings.dateRange.slice(0, -1) + " " + rangeNames[settings.dateRange];
+      if (comparisonSymbol && comparisonSymbol !== "none" && comparisonHistory &&
+        comparisonHistory.length && shared.length < 2) {
+        benchmarkStatus.textContent = "Not enough shared trading dates to compare this benchmark.";
+      } else if (comparisonSymbol === "none") {
+        benchmarkStatus.textContent = "Benchmark comparison is off.";
+      }
+    }
   }
 
   function renderForecast(data, currencyCode, exchangeRate) {
@@ -674,8 +881,55 @@
     container.appendChild(empty);
   }
 
+  function loadBenchmarkHistory(symbol) {
+    const status = document.getElementById("benchmark-status");
+    const selectedSymbol = symbol;
+    const requestId = ++benchmarkRequestId;
+    if (!selectedSymbol || selectedSymbol === "none") {
+      benchmarkHistory = null;
+      benchmarkLoadedSymbol = "";
+      status.textContent = "Benchmark comparison is off.";
+      if (currentStockData) {
+        renderChart(currentStockData.history, currentChartCurrency, currentChartExchangeRate, null, "none");
+      }
+      return;
+    }
+    if (benchmarkLoadedSymbol === selectedSymbol && benchmarkHistory) {
+      status.textContent = "Updating comparison chart...";
+      if (currentStockData) {
+        renderChart(currentStockData.history, currentChartCurrency, currentChartExchangeRate,
+          benchmarkHistory, selectedSymbol);
+      }
+      return;
+    }
+    benchmarkHistory = null;
+    benchmarkLoadedSymbol = "";
+    status.textContent = "Loading benchmark history...";
+    if (currentStockData) {
+      renderChart(currentStockData.history, currentChartCurrency, currentChartExchangeRate, null, selectedSymbol);
+    }
+    apiRequest("/api/history?symbol=" + encodeURIComponent(selectedSymbol), "")
+      .then(function (data) {
+        if (requestId !== benchmarkRequestId) {
+          return;
+        }
+        benchmarkHistory = data.history;
+        benchmarkLoadedSymbol = selectedSymbol;
+        if (currentStockData) {
+          renderChart(currentStockData.history, currentChartCurrency, currentChartExchangeRate,
+            benchmarkHistory, selectedSymbol);
+        }
+      })
+      .catch(function (error) {
+        if (requestId === benchmarkRequestId) {
+          status.textContent = "Benchmark unavailable: " + error.message;
+        }
+      });
+  }
+
   function renderStock(data) {
     currentStockData = data;
+    updateWatchlistToggle();
     const renderId = ++stockRenderId;
     const settings = readSettings();
     const currencyCode = settings.currency === "MARKET" ? data.currency : settings.currency;
@@ -704,6 +958,8 @@
   }
 
   function renderStockValues(data, currencyCode, exchangeRate) {
+    currentChartCurrency = currencyCode;
+    currentChartExchangeRate = exchangeRate;
     const overview = document.getElementById("stock-overview");
     overview.hidden = false;
     document.getElementById("company-name").textContent = data.name || data.symbol;
@@ -728,7 +984,12 @@
         : "Directional accuracy over " + data.model.backtestCount + " past two-session tests; not a probability of future success.";
     document.getElementById("market-updated").textContent =
       "Market history retrieved " + new Date(data.updatedAt).toLocaleString();
-    renderChart(data.history, currencyCode, exchangeRate);
+    const benchmarkSymbol = document.getElementById("benchmark-symbol").value;
+    const activeBenchmarkHistory = benchmarkLoadedSymbol === benchmarkSymbol ? benchmarkHistory : null;
+    renderChart(data.history, currencyCode, exchangeRate, activeBenchmarkHistory, benchmarkSymbol);
+    if (benchmarkSymbol !== "none" && benchmarkLoadedSymbol !== benchmarkSymbol) {
+      loadBenchmarkHistory(benchmarkSymbol);
+    }
     renderForecast(data, currencyCode, exchangeRate);
     renderComparables(data);
     setMarketStatus("Showing latest available daily market history for " + data.symbol + ".", true);
@@ -737,6 +998,8 @@
   function loadStock(symbol) {
     const requestId = ++stockRequestId;
     const normalized = symbol.trim().toUpperCase();
+    currentStockData = null;
+    updateWatchlistToggle();
     lastStockSymbol = normalized;
     symbolInput.value = normalized;
     document.getElementById("stock-submit").disabled = true;
@@ -936,6 +1199,9 @@
     });
     if (currentView === "market-movers") {
       loadMarketMovers();
+    }
+    if (currentView === "stocks") {
+      loadWatchlist();
     }
   }
 
@@ -1350,6 +1616,38 @@
   document.getElementById("movers-period").addEventListener("change", function () {
     marketMoversLoadedPeriod = "";
     loadMarketMovers();
+  });
+  document.getElementById("benchmark-symbol").addEventListener("change", function (event) {
+    loadBenchmarkHistory(event.currentTarget.value);
+  });
+  document.getElementById("watchlist-period").addEventListener("change", loadWatchlist);
+  document.getElementById("watchlist-toggle").addEventListener("click", function () {
+    if (!currentStockData) {
+      return;
+    }
+    const symbol = currentStockData.symbol;
+    const current = readWatchlist();
+    const isSaved = current.indexOf(symbol) !== -1;
+    if (isSaved) {
+      if (saveWatchlist(current.filter(function (savedSymbol) { return savedSymbol !== symbol; }))) {
+        document.getElementById("watchlist-status").textContent = symbol + " removed from your watchlist.";
+      } else {
+        return;
+      }
+    } else {
+      if (current.length >= maxWatchlistStocks) {
+        document.getElementById("watchlist-status").textContent =
+          "Your watchlist is full. Remove a stock before adding another.";
+        return;
+      }
+      if (saveWatchlist([symbol].concat(current))) {
+        document.getElementById("watchlist-status").textContent = symbol + " added to your watchlist.";
+      } else {
+        return;
+      }
+    }
+    updateWatchlistToggle();
+    loadWatchlist();
   });
   showView();
   initializeAccounts();

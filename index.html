@@ -89,7 +89,10 @@
               <p class="eyebrow" id="company-name">Stock</p>
               <h2 id="quote-symbol">AAPL</h2>
             </div>
-            <span class="quote-label">Latest daily close</span>
+            <div class="quote-card-actions">
+              <span class="quote-label">Latest daily close</span>
+              <button id="watchlist-toggle" class="watchlist-toggle" type="button" disabled>Add to watchlist</button>
+            </div>
           </div>
           <strong id="quote-price" class="quote-price">--</strong>
           <p id="quote-change" class="quote-change"></p>
@@ -115,9 +118,19 @@
               <h2>Recent price history</h2>
               <p id="chart-range-label">Daily closing prices · past 3 months</p>
             </div>
+            <label class="benchmark-control" for="benchmark-symbol">
+              <span class="field-label">Compare with</span>
+              <select id="benchmark-symbol">
+                <option value="SPY">S&amp;P 500 (SPY)</option>
+                <option value="QQQ">Nasdaq-100 (QQQ)</option>
+                <option value="none">No benchmark</option>
+              </select>
+            </label>
           </div>
           <div id="chart-empty" class="chart-empty">Choose a stock to load its historical prices.</div>
           <svg id="price-chart" class="price-chart" role="img" aria-label="Stock daily closing price chart" hidden></svg>
+          <div id="benchmark-legend" class="benchmark-legend" hidden></div>
+          <p id="benchmark-status" class="benchmark-status" role="status" aria-live="polite"></p>
           <div id="chart-range" class="chart-range" hidden></div>
         </article>
 
@@ -144,6 +157,30 @@
         </div>
         <div id="comparables" class="comparables-list">
           <p class="chart-empty">Comparable data will appear after market data loads.</p>
+        </div>
+      </section>
+
+      <section class="panel watchlist-panel" aria-label="Your watchlist">
+        <div class="panel-title">
+          <div>
+            <h2>Your watchlist</h2>
+            <p>Saved in this browser · latest prices and selected-period changes</p>
+          </div>
+          <label class="watchlist-period-control" for="watchlist-period">
+            <span class="field-label">Return period</span>
+            <select id="watchlist-period">
+              <option value="1w">1 week</option>
+              <option value="1m">1 month</option>
+              <option value="3m" selected>3 months</option>
+              <option value="6m">6 months</option>
+              <option value="1y">1 year</option>
+              <option value="5y">5 years</option>
+            </select>
+          </label>
+        </div>
+        <p id="watchlist-status" class="watchlist-status" role="status" aria-live="polite"></p>
+        <div id="watchlist-list" class="watchlist-list">
+          <p class="chart-empty">Add a stock from its quote card to start your watchlist.</p>
         </div>
       </section>
 
