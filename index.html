@@ -82,7 +82,12 @@
             <div id="stock-symbol-suggestions" class="stock-suggestions" role="listbox" hidden></div>
           </div>
         </label>
-        <button id="stock-submit" class="primary-button" type="submit">Analyze stock</button>
+        <div class="stock-search-actions">
+          <button id="stock-submit" class="primary-button" type="submit">Analyze stock</button>
+          <button id="stock-export" class="secondary-button stock-export-button" type="button" disabled>
+            Export to CSV
+          </button>
+        </div>
         <p id="stock-search-status" class="stock-search-status" role="status" aria-live="polite">
           Search any stock or ETF by symbol or company name.
         </p>
@@ -102,9 +107,6 @@
             </div>
             <div class="quote-card-actions">
               <span class="quote-label">Latest daily close</span>
-              <button id="stock-export" class="secondary-button stock-export-button" type="button" disabled>
-                Export for Excel
-              </button>
               <button id="watchlist-toggle" class="watchlist-toggle" type="button" disabled>Add to watchlist</button>
             </div>
           </div>

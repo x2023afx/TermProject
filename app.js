@@ -541,6 +541,23 @@
 
     svg.replaceChildren();
     svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    svg.setAttribute("width", String(width));
+    svg.setAttribute("height", String(height));
+    svg.removeAttribute("hidden");
+    svg.style.display = "block";
+    const gridColor = getComputedStyle(document.body).getPropertyValue("--border").trim();
+    [0.25, 0.5, 0.75].forEach(function (fraction) {
+      const gridline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const y = padding.top + fraction * (height - padding.top - padding.bottom);
+      gridline.setAttribute("x1", String(padding.left));
+      gridline.setAttribute("x2", String(width - padding.right));
+      gridline.setAttribute("y1", y.toFixed(2));
+      gridline.setAttribute("y2", y.toFixed(2));
+      gridline.setAttribute("stroke", gridColor);
+      gridline.setAttribute("stroke-width", "1");
+      gridline.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(gridline);
+    });
     if (compared) {
       const zeroLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
       const zeroY = padding.top + (max / spread) * (height - padding.top - padding.bottom);
@@ -549,16 +566,31 @@
       zeroLine.setAttribute("y1", zeroY.toFixed(2));
       zeroLine.setAttribute("y2", zeroY.toFixed(2));
       zeroLine.setAttribute("class", "benchmark-zero-line");
+      zeroLine.setAttribute("fill", "none");
+      zeroLine.setAttribute("stroke", gridColor);
+      zeroLine.setAttribute("stroke-width", "1");
       svg.appendChild(zeroLine);
     }
     const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
     line.setAttribute("d", makePath(targetValues));
     line.setAttribute("class", "chart-line");
+    line.setAttribute("fill", "none");
+    line.setAttribute("stroke", getComputedStyle(document.body).getPropertyValue("--green").trim());
+    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-linecap", "round");
+    line.setAttribute("stroke-linejoin", "round");
+    line.setAttribute("vector-effect", "non-scaling-stroke");
     svg.appendChild(line);
     if (compared) {
       const benchmarkLine = document.createElementNS("http://www.w3.org/2000/svg", "path");
       benchmarkLine.setAttribute("d", makePath(benchmarkValues));
       benchmarkLine.setAttribute("class", "benchmark-chart-line");
+      benchmarkLine.setAttribute("fill", "none");
+      benchmarkLine.setAttribute("stroke", "#d7a64b");
+      benchmarkLine.setAttribute("stroke-width", "2.5");
+      benchmarkLine.setAttribute("stroke-linecap", "round");
+      benchmarkLine.setAttribute("stroke-linejoin", "round");
+      benchmarkLine.setAttribute("vector-effect", "non-scaling-stroke");
       svg.appendChild(benchmarkLine);
     }
     svg.hidden = false;
