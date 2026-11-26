@@ -220,6 +220,21 @@
     renderLookupHistory();
   }
 
+  function clearLookupHistory() {
+    try {
+      localStorage.removeItem(lookupHistoryKey);
+    } catch (error) {
+      const message = "Could not clear lookup history in this browser.";
+      setAccountMessage(message);
+      document.getElementById("profile-history-status").textContent = message;
+      return;
+    }
+    renderLookupHistory();
+    const message = "Lookup history cleared from this browser.";
+    setAccountMessage(message);
+    document.getElementById("profile-history-status").textContent = message;
+  }
+
   function readWatchlist() {
     try {
       const saved = JSON.parse(localStorage.getItem(watchlistKey) || "[]");
@@ -374,6 +389,21 @@
         section.scrollIntoView({ behavior: "smooth", block: "start" });
       }
     }, 50);
+  }
+
+  function signOutAccount() {
+    const token = accountToken();
+    apiRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
+      .then(function () {
+        localStorage.removeItem(accountTokenKey);
+        displayAccount(false, "");
+        setAccountMessage("Signed out.");
+      })
+      .catch(function (error) {
+        localStorage.removeItem(accountTokenKey);
+        displayAccount(false, "");
+        setAccountMessage("Signed out on this device; the server session could not be revoked: " + error.message);
+      });
   }
 
   function setMarketStatus(message) {
@@ -1862,16 +1892,8 @@
         document.getElementById("header-account").focus();
       }
     });
-    document.getElementById("clear-lookups").addEventListener("click", function () {
-      try {
-        localStorage.removeItem(lookupHistoryKey);
-      } catch (error) {
-        setAccountMessage("Could not clear lookup history in this browser.");
-        return;
-      }
-      renderLookupHistory();
-      setAccountMessage("Lookup history cleared from this browser.");
-    });
+    document.getElementById("clear-lookups").addEventListener("click", clearLookupHistory);
+    document.getElementById("profile-clear-history").addEventListener("click", clearLookupHistory);
     document.getElementById("personal-info-form").addEventListener("submit", function (event) {
       event.preventDefault();
       submitPersonalInfo(event.currentTarget.querySelector("#save-personal-info"));
@@ -1886,20 +1908,8 @@
         document.getElementById("account-form").dataset.mode === "register" ? "login" : "register"
       );
     });
-    document.getElementById("sign-out").addEventListener("click", function () {
-      const token = accountToken();
-      apiRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
-        .then(function () {
-          localStorage.removeItem(accountTokenKey);
-          displayAccount(false, "");
-          setAccountMessage("Signed out.");
-        })
-        .catch(function (error) {
-          localStorage.removeItem(accountTokenKey);
-          displayAccount(false, "");
-          setAccountMessage("Signed out on this device; the server session could not be revoked: " + error.message);
-        });
-    });
+    document.getElementById("sign-out").addEventListener("click", signOutAccount);
+    document.getElementById("profile-sign-out").addEventListener("click", signOutAccount);
     document.getElementById("delete-account").addEventListener("click", function () {
       if (!window.confirm("Permanently delete your account? This cannot be undone.")) {
         return;

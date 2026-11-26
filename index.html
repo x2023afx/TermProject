@@ -44,9 +44,12 @@
           <span>Signed in</span>
         </div>
         <button type="button" class="profile-menu-link" data-profile-target="lookup-history">History</button>
+        <button type="button" class="profile-menu-link" id="profile-clear-history">Clear history</button>
+        <p id="profile-history-status" class="profile-menu-empty" role="status" aria-live="polite"></p>
         <a href="#account" class="profile-menu-link" data-profile-target="account-home">Account</a>
         <a href="#account" class="profile-menu-link" data-profile-target="personal-info">Personal info</a>
         <a href="#account" class="profile-menu-link" data-profile-target="account-settings">Settings</a>
+        <button type="button" class="profile-menu-link" id="profile-sign-out">Sign out</button>
       </div>
     </div>
   </header>
@@ -305,8 +308,8 @@
       <div id="account-home" class="page-heading">
         <div>
           <p class="eyebrow">Your CrystalBallStocks account</p>
-          <h1>Sign in without email confirmation.</h1>
-          <p class="lead">An account lets you sign in to this research prototype. No confirmation or sign-in emails are sent.</p>
+          <h1>Account and settings</h1>
+          <p class="lead">Manage your account details, personal information, and preferences.</p>
         </div>
       </div>
       <section id="account-signed-out" class="panel account-panel">
@@ -441,7 +444,7 @@
             </label>
             <label class="setting-control setting-select" for="date-range-setting">
               <span>
-                <strong>Stock chart range</strong>
+                <strong>Default stock chart range</strong>
                 <small>Choose the history shown in the chart.</small>
               </span>
               <select id="date-range-setting">
