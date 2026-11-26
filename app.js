@@ -415,6 +415,77 @@
     return (value > 0 ? "+" : "") + (value * 100).toFixed(2) + "%";
   }
 
+  function csvCell(value) {
+    if (value === null || value === undefined) {
+      return "";
+    }
+    if (typeof value === "number") {
+      return Number.isFinite(value) ? String(value) : "";
+    }
+    let text = String(value);
+    if (/^[\s]*[=+\-@]/.test(text)) {
+      text = "'" + text;
+    }
+    return '"' + text.replace(/"/g, '""') + '"';
+  }
+
+  function exportStockData() {
+    if (!currentStockData) {
+      return;
+    }
+    const data = currentStockData;
+    const currencyCode = currentChartCurrency;
+    const exchangeRate = currentChartExchangeRate;
+    const rows = [[
+      "Section", "Date", "Symbol", "Name", "Currency", "Price", "Change", "Return",
+      "Low", "High", "Notes"
+    ]];
+    function addRow(section, date, symbol, name, currency, price, change, changePercent, low, high, notes) {
+      rows.push([section, date, symbol, name, currency, price, change, changePercent, low, high, notes]);
+    }
+
+    addRow("Quote", data.priceDate, data.symbol, data.name, currencyCode,
+      data.price * exchangeRate, data.change * exchangeRate, data.changePercent, "", "",
+      "Latest daily close; displayed values use a reference exchange rate from " + data.currency +
+        " at " + exchangeRate + ".");
+    data.forecast.forEach(function (item) {
+      addRow("Forecast session " + item.session, "", data.symbol, data.name, currencyCode,
+        item.price * exchangeRate, "", item.price / data.price - 1,
+        item.low * exchangeRate, item.high * exchangeRate,
+        "Estimated range; actual prices may fall outside it.");
+    });
+    addRow("Model confidence", "", data.symbol, data.name, "", "", "",
+      data.model.directionalAccuracy === null ? "" : data.model.directionalAccuracy,
+      "", "", data.model.directionalAccuracy === null
+        ? "Insufficient out-of-sample history."
+        : "Historical directional accuracy across " + data.model.backtestCount +
+          " tests; not a probability of future success.");
+    data.comparables.forEach(function (item) {
+      addRow("Comparable", "", item.symbol, item.name, "", "", "", item.return, "", "",
+        "Return over latest 20 aligned sessions.");
+    });
+    data.history.forEach(function (item) {
+      addRow("Daily close", item.date, data.symbol, data.name, currencyCode,
+        item.close * exchangeRate, "", "", "", "",
+        "Historical close; converted from " + data.currency + " using the reference rate above.");
+    });
+
+    const csv = "\uFEFF" + rows.map(function (row) {
+      return row.map(csvCell).join(",");
+    }).join("\r\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = data.symbol + "-stock-research.csv";
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(function () {
+      URL.revokeObjectURL(url);
+    }, 1000);
+  }
+
   function renderChart(history, currencyCode, exchangeRate, comparisonHistory, comparisonSymbol) {
     const svg = document.getElementById("price-chart");
     const empty = document.getElementById("chart-empty");
@@ -997,6 +1068,7 @@
 
   function renderStock(data) {
     currentStockData = data;
+    document.getElementById("stock-export").disabled = false;
     updateWatchlistToggle();
     const renderId = ++stockRenderId;
     const settings = readSettings();
@@ -1067,6 +1139,7 @@
     const requestId = ++stockRequestId;
     const normalized = symbol.trim().toUpperCase();
     currentStockData = null;
+    document.getElementById("stock-export").disabled = true;
     updateWatchlistToggle();
     lastStockSymbol = normalized;
     symbolInput.value = normalized;
@@ -1694,6 +1767,7 @@
   document.getElementById("benchmark-symbol").addEventListener("change", function (event) {
     loadBenchmarkHistory(event.currentTarget.value);
   });
+  document.getElementById("stock-export").addEventListener("click", exportStockData);
   document.getElementById("watchlist-period").addEventListener("change", loadWatchlist);
   document.getElementById("watchlist-toggle").addEventListener("click", function () {
     if (!currentStockData) {
