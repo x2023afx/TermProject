@@ -53,6 +53,7 @@ a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible
 nav { display: flex; align-items: center; gap: 25px; }
 nav a { color: var(--muted); font-size: .88rem; font-weight: 600; text-decoration: none; }
 nav a:hover { color: var(--green); }
+nav a[aria-current="page"] { color: var(--green); }
 .data-badge { margin-left: auto; padding: 7px 11px; color: #6b716b; background: #f1f5f1; border: 1px solid var(--border); border-radius: 99px; font-size: .73rem; font-weight: 650; white-space: nowrap; }
 .data-badge span { display: inline-block; width: 7px; height: 7px; margin: 0 5px 1px 0; border-radius: 50%; background: #be8540; }
 .data-badge.is-connected { color: #35684e; background: #eaf3ec; }
