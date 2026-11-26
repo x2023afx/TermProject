@@ -19,7 +19,7 @@ The frontend is plain HTML, CSS, and JavaScript with no build step.
 
 1. Publish the repository root as the Cloudflare Pages site. `index.html` is the entry point.
 2. Deploy `worker.js` to the Worker named `pace-pattern-private` (or update `STARTUP.apiBaseUrl` in `data.js` to the new Worker URL).
-3. Configure `CORS_ORIGIN` on the Worker to the exact public Pages origin. The existing public site is `https://morgagemypyarlay.pages.dev`.
+3. Configure `CORS_ORIGIN` on the Worker to the exact public Pages origin, `https://crystalballstocks.pages.dev`.
 4. To enable account sign-in, bind the existing Cloudflare D1 database as `DB` and set `ACCOUNTS_ENABLED=true`. Do not replace or recreate a database containing existing data. The current schema and migration preserve existing account rows; for a database that has the original `users` table but has not had username/password columns added, run `migrations/0002_username_password.sql` once before deployment.
 5. To support saved personal details for existing accounts and required signup details, run `migrations/0003_user_profile.sql` once against the existing D1 database before deploying the Worker. For a new database, the profile columns are included in `schema.sql`.
 6. Account creation requires a name, phone number, and mailing address (street, city, region, postal code, and country) in addition to email and password. Phone numbers use `000-000-0000`; postal codes may contain letters, numbers, spaces, and hyphens. Sign-in remains email and password only. The app does not send confirmation, login, or other email. Passwords are stored as salted PBKDF2-SHA-256 hashes, never as plain text. An email address is not proof of identity because ownership is not verified.

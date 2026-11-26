@@ -632,7 +632,7 @@ export default {
   async fetch(request, env) {
     const url = new URL(request.url);
     const origin = request.headers.get("Origin");
-    const allowedOrigin = env.CORS_ORIGIN || "https://morgagemypyarlay.pages.dev";
+    const allowedOrigin = env.CORS_ORIGIN || "https://crystalballstocks.pages.dev";
     if (origin && origin !== allowedOrigin) {
       return jsonResponse({ error: "This website is not allowed to use the API." }, 403);
     }

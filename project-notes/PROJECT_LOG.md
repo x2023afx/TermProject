@@ -3,8 +3,8 @@
 Keep this up to date as you go — a few lines per work session is enough. It's much harder to reconstruct at the end.
 
 **Team name:** Nicholas Bergen
-**Startup name:** North Star
-**Live site link:** https://morgagemypyarlay.pages.dev/#account
+**Startup name:** CrystalBallStocks
+**Live site link:** https://crystalballstocks.pages.dev/#account
 
 ---
 
