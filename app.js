@@ -224,15 +224,13 @@
     try {
       localStorage.removeItem(lookupHistoryKey);
     } catch (error) {
-      const message = "Could not clear lookup history in this browser.";
+      const message = "Could not clear history in this browser.";
       setAccountMessage(message);
-      document.getElementById("profile-history-status").textContent = message;
       return;
     }
     renderLookupHistory();
-    const message = "Lookup history cleared from this browser.";
+    const message = "History cleared from this browser.";
     setAccountMessage(message);
-    document.getElementById("profile-history-status").textContent = message;
   }
 
   function readWatchlist() {
@@ -1893,7 +1891,6 @@
       }
     });
     document.getElementById("clear-lookups").addEventListener("click", clearLookupHistory);
-    document.getElementById("profile-clear-history").addEventListener("click", clearLookupHistory);
     document.getElementById("personal-info-form").addEventListener("submit", function (event) {
       event.preventDefault();
       submitPersonalInfo(event.currentTarget.querySelector("#save-personal-info"));
