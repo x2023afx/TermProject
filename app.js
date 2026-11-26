@@ -2,6 +2,8 @@
   "use strict";
 
   const accountTokenKey = "northstarAccountToken";
+  const lookupHistoryKey = "northstarLookupHistory";
+  const maxLookups = 10;
   const stockForm = document.getElementById("stock-form");
   const symbolInput = document.getElementById("stock-symbol");
   const accountToken = function () {
@@ -55,6 +57,87 @@
     headerAccount.classList.toggle("is-signed-in", signedIn);
     headerAccount.setAttribute("aria-label", signedIn ? "Account profile for " + email : "Sign in");
     headerAccount.title = signedIn ? email : "Sign in";
+    document.getElementById("profile-menu-name").textContent = email || "";
+    if (!signedIn) {
+      closeProfileMenu();
+    }
+    renderLookupHistory();
+  }
+
+  function readLookupHistory() {
+    try {
+      const saved = JSON.parse(localStorage.getItem(lookupHistoryKey) || "[]");
+      return Array.isArray(saved)
+        ? saved.filter(function (symbol) {
+          return typeof symbol === "string" && /^[A-Z0-9.^=-]{1,12}$/.test(symbol);
+        }).slice(0, maxLookups)
+        : [];
+    } catch (error) {
+      return [];
+    }
+  }
+
+  function renderLookupHistory() {
+    const history = readLookupHistory();
+    [document.getElementById("profile-menu-lookups"), document.getElementById("account-lookups")]
+      .forEach(function (container) {
+        container.replaceChildren();
+        if (!history.length) {
+          const empty = document.createElement("p");
+          empty.className = "profile-menu-empty";
+          empty.textContent = "Your successful stock lookups will appear here.";
+          container.appendChild(empty);
+          return;
+        }
+        history.forEach(function (symbol) {
+          const button = document.createElement("button");
+          button.type = "button";
+          button.className = "profile-lookup";
+          button.textContent = symbol;
+          button.addEventListener("click", function () {
+            closeProfileMenu();
+            window.location.hash = "stocks";
+            loadStock(symbol);
+          });
+          container.appendChild(button);
+        });
+      });
+  }
+
+  function saveLookup(symbol) {
+    const history = readLookupHistory().filter(function (savedSymbol) {
+      return savedSymbol !== symbol;
+    });
+    history.unshift(symbol);
+    try {
+      localStorage.setItem(lookupHistoryKey, JSON.stringify(history.slice(0, maxLookups)));
+    } catch (error) {
+      return;
+    }
+    renderLookupHistory();
+  }
+
+  function closeProfileMenu() {
+    const menu = document.getElementById("profile-menu");
+    menu.hidden = true;
+    document.getElementById("header-account").setAttribute("aria-expanded", "false");
+  }
+
+  function toggleProfileMenu() {
+    const menu = document.getElementById("profile-menu");
+    menu.hidden = !menu.hidden;
+    document.getElementById("header-account").setAttribute("aria-expanded", String(!menu.hidden));
+  }
+
+  function openAccountSection(sectionId) {
+    closeProfileMenu();
+    window.location.hash = "account";
+    window.setTimeout(function () {
+      const section = document.getElementById(sectionId);
+      if (section) {
+        section.scrollIntoView({ behavior: "smooth", block: "start" });
+      }
+    }, 0);
   }
 
   function setMarketStatus(message, connected) {
@@ -216,6 +299,7 @@
       .then(function (data) {
         if (requestId === stockRequestId) {
           renderStock(data);
+          saveLookup(normalized);
         }
       })
       .catch(function (error) {
@@ -302,6 +386,39 @@
   }
 
   function initializeAccounts() {
+    document.getElementById("header-account").addEventListener("click", function (event) {
+      if (accountToken()) {
+        event.preventDefault();
+        toggleProfileMenu();
+      }
+    });
+    document.querySelectorAll("[data-profile-target]").forEach(function (link) {
+      link.addEventListener("click", function (event) {
+        event.preventDefault();
+        openAccountSection(link.dataset.profileTarget);
+      });
+    });
+    document.addEventListener("click", function (event) {
+      if (!event.target.closest(".profile-menu-container")) {
+        closeProfileMenu();
+      }
+    });
+    document.addEventListener("keydown", function (event) {
+      if (event.key === "Escape") {
+        closeProfileMenu();
+        document.getElementById("header-account").focus();
+      }
+    });
+    document.getElementById("clear-lookups").addEventListener("click", function () {
+      try {
+        localStorage.removeItem(lookupHistoryKey);
+      } catch (error) {
+        setAccountMessage("Could not clear lookup history in this browser.");
+        return;
+      }
+      renderLookupHistory();
+      setAccountMessage("Lookup history cleared from this browser.");
+    });
     document.getElementById("account-form").addEventListener("submit", function (event) {
       event.preventDefault();
       submitCredentials("login", event.currentTarget.querySelector('[data-action="login"]'));

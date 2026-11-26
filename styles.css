@@ -31,6 +31,17 @@ nav a:hover { color: var(--green); }
 .header-button { padding: 9px 15px; white-space: nowrap; }
 .header-button.is-signed-in { display: grid; width: 42px; height: 42px; padding: 3px; place-items: center; border-radius: 50%; }
 .profile-avatar { display: grid; width: 34px; height: 34px; place-items: center; color: var(--green-dark); background: var(--green-pale); border: 1px solid #cfe1d5; border-radius: 50%; font-size: .95rem; font-weight: 750; }
+.profile-menu-container { position: relative; }
+.profile-menu { position: absolute; z-index: 10; top: calc(100% + 10px); right: 0; width: 260px; padding: 14px; box-shadow: 0 12px 30px rgb(23 36 31 / 14%); }
+.profile-menu-heading { display: grid; gap: 2px; padding: 3px 4px 11px; border-bottom: 1px solid var(--border); }
+.profile-menu-heading strong { overflow: hidden; font-size: .82rem; text-overflow: ellipsis; }
+.profile-menu-heading span, .profile-menu-label { color: var(--muted); font-size: .7rem; }
+.profile-menu-label { margin: 12px 4px 5px; font-weight: 700; }
+.profile-menu-lookups { display: grid; gap: 3px; }
+.profile-lookup, .profile-menu-link { width: 100%; padding: 8px; color: var(--ink); background: transparent; border: 0; border-radius: 7px; font: inherit; font-size: .78rem; text-align: left; text-decoration: none; cursor: pointer; }
+.profile-lookup:hover, .profile-menu-link:hover { color: var(--green-dark); background: var(--green-pale); }
+.profile-menu-empty { margin: 0; padding: 7px 4px; color: var(--muted); font-size: .7rem; }
+.profile-menu-link { display: block; border-top: 1px solid #edf0ed; }
 .primary-button { min-height: 44px; padding: 0 17px; }
 .header-button:hover, .primary-button:hover { background: var(--green-dark); border-color: var(--green-dark); }
 .primary-button:disabled { opacity: .6; cursor: wait; }
@@ -87,6 +98,11 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
 .notice p { margin: 0; color: #716b5f; font-size: .74rem; }
 .account-panel { margin-top: 18px; padding: 22px; }
 .account-panel h2 { margin: 0 0 16px; font-size: 1.03rem; }
+.profile-section { scroll-margin-top: 20px; }
+.profile-section + .profile-section { margin-top: 23px; padding-top: 20px; border-top: 1px solid var(--border); }
+.profile-section h2 { margin: 0 0 9px; font-size: 1.03rem; }
+.profile-section > p:not(.eyebrow) { margin-bottom: 0; }
+.profile-section .account-actions { margin-top: 14px; }
 .account-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 14px; max-width: 760px; }
 .account-form label { min-width: 0; }
 .account-actions { display: flex; flex-wrap: wrap; align-items: center; gap: 12px; grid-column: 1 / -1; }

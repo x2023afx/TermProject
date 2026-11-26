@@ -32,7 +32,7 @@ Copy this block for each session.
 | 11/13/26 | Account Creation | Wont send emails           | Use a internal databse with no conformation |
 | 11/16/26 | Login            | internal database          | internal database                           |
 | 11/26/26 | No Data          | connecting to finance api  | changed api                                 |
-| 11/26/26 | Login            |                            |                                             |
+| 11/26/26 | Profile          | profile button             | added more functions                        |
 
 
 
