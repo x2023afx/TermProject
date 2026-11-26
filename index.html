@@ -165,6 +165,40 @@
           <p class="eyebrow">Personal info</p>
           <h2>Account details</h2>
           <p>You are signed in as <strong id="account-email-display"></strong>.</p>
+          <form id="personal-info-form" class="personal-info-form">
+            <label>
+              <span class="field-label">Full name</span>
+              <input name="fullName" type="text" autocomplete="name" maxlength="120">
+            </label>
+            <label>
+              <span class="field-label">Phone</span>
+              <input name="phone" type="tel" autocomplete="tel" maxlength="40">
+            </label>
+            <label class="personal-info-wide">
+              <span class="field-label">Street address</span>
+              <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200">
+            </label>
+            <label>
+              <span class="field-label">City</span>
+              <input name="city" type="text" autocomplete="address-level2" maxlength="100">
+            </label>
+            <label>
+              <span class="field-label">State / province / region</span>
+              <input name="region" type="text" autocomplete="address-level1" maxlength="100">
+            </label>
+            <label>
+              <span class="field-label">Postal code</span>
+              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="24">
+            </label>
+            <label>
+              <span class="field-label">Country</span>
+              <input name="country" type="text" autocomplete="country-name" maxlength="100">
+            </label>
+            <div class="account-actions">
+              <button id="save-personal-info" class="primary-button" type="submit">Save personal info</button>
+              <p id="personal-info-status" class="account-status" role="status" aria-live="polite"></p>
+            </div>
+          </form>
         </div>
         <div id="lookup-history" class="profile-section">
           <p class="eyebrow">This browser only</p>
@@ -217,7 +251,7 @@
       </section>
       <aside class="notice">
         <strong>Account privacy</strong>
-        <p>Your email address, salted password hash, and session are stored by the API in its existing Cloudflare D1 database. Passwords are never stored as plain text. Since email ownership is not verified, use an address you control and do not reuse an important password.</p>
+        <p>Your email address, any personal details you save, salted password hash, and session are stored by the API in its Cloudflare D1 database. Personal details are optional; passwords are never stored as plain text. Since email ownership is not verified, use an address you control and do not reuse an important password.</p>
       </aside>
     </section>
 

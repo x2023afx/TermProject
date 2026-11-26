@@ -37,7 +37,7 @@ function jsonResponse(data, status, origin) {
   if (origin) {
     headers["access-control-allow-origin"] = origin;
     headers.vary = "Origin";
-    headers["access-control-allow-methods"] = "GET, POST, DELETE, OPTIONS";
+    headers["access-control-allow-methods"] = "GET, POST, PUT, DELETE, OPTIONS";
     headers["access-control-allow-headers"] = "Content-Type, Authorization";
   }
   return new Response(JSON.stringify(data), { status: status, headers: headers });
@@ -103,6 +103,10 @@ function validEmail(value) {
 
 function validPassword(value) {
   return typeof value === "string" && value.length >= 12 && value.length <= 128;
+}
+
+function validProfileField(value, maxLength) {
+  return typeof value === "string" && value.trim().length <= maxLength;
 }
 
 function randomSalt() {
@@ -487,7 +491,54 @@ async function handleApi(request, url, env) {
     return jsonError("Sign in to access your account.", 401);
   }
   if (url.pathname === "/api/me" && request.method === "GET") {
-    return { body: { email: session.email }, status: 200 };
+    const user = await env.DB.prepare(
+      "SELECT email, full_name, phone, street_address, city, region, postal_code, country " +
+      "FROM users WHERE id = ?"
+    ).bind(session.id).first();
+    if (!user) {
+      return jsonError("Account not found.", 404);
+    }
+    return {
+      body: {
+        email: user.email,
+        profile: {
+          fullName: user.full_name || "",
+          phone: user.phone || "",
+          streetAddress: user.street_address || "",
+          city: user.city || "",
+          region: user.region || "",
+          postalCode: user.postal_code || "",
+          country: user.country || ""
+        }
+      },
+      status: 200
+    };
+  }
+  if (url.pathname === "/api/profile" && request.method === "PUT") {
+    const body = await readJson(request);
+    const profile = body && body.profile;
+    const fields = [
+      ["fullName", 120],
+      ["phone", 40],
+      ["streetAddress", 200],
+      ["city", 100],
+      ["region", 100],
+      ["postalCode", 24],
+      ["country", 100]
+    ];
+    if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
+      fields.some(function (field) {
+        return !validProfileField(profile[field[0]], field[1]);
+      })) {
+      return jsonError("Enter profile details within the allowed field lengths.", 400);
+    }
+    const values = fields.map(function (field) { return profile[field[0]].trim() || null; });
+    const update = env.DB.prepare(
+      "UPDATE users SET full_name = ?, phone = ?, street_address = ?, city = ?, " +
+      "region = ?, postal_code = ?, country = ? WHERE id = ?"
+    );
+    await update.bind(...values, session.id).run();
+    return { body: { saved: true }, status: 200 };
   }
   if (url.pathname === "/api/account" && request.method === "DELETE") {
     await env.DB.prepare("DELETE FROM auth_requests WHERE email_hash = ?")
@@ -514,7 +565,7 @@ export default {
         status: 204,
         headers: {
           "access-control-allow-origin": origin || allowedOrigin,
-          "access-control-allow-methods": "GET, POST, DELETE, OPTIONS",
+          "access-control-allow-methods": "GET, POST, PUT, DELETE, OPTIONS",
           "access-control-allow-headers": "Content-Type, Authorization",
           vary: "Origin"
         }

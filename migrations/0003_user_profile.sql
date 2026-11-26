@@ -1,0 +1,7 @@
+ALTER TABLE users ADD COLUMN full_name TEXT;
+ALTER TABLE users ADD COLUMN phone TEXT;
+ALTER TABLE users ADD COLUMN street_address TEXT;
+ALTER TABLE users ADD COLUMN city TEXT;
+ALTER TABLE users ADD COLUMN region TEXT;
+ALTER TABLE users ADD COLUMN postal_code TEXT;
+ALTER TABLE users ADD COLUMN country TEXT;

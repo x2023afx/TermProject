@@ -5,6 +5,13 @@ CREATE TABLE IF NOT EXISTS users (
   password_salt TEXT,
   password_hash TEXT,
   password_iterations INTEGER,
+  full_name TEXT,
+  phone TEXT,
+  street_address TEXT,
+  city TEXT,
+  region TEXT,
+  postal_code TEXT,
+  country TEXT,
   created_at INTEGER NOT NULL,
   CHECK (
     (password_salt IS NULL AND password_hash IS NULL AND password_iterations IS NULL) OR

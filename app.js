@@ -144,6 +144,7 @@
     document.getElementById("profile-menu-name").textContent = email || "";
     if (!signedIn) {
       closeProfileMenu();
+      displayPersonalInfo(null);
     }
     renderLookupHistory();
   }
@@ -492,6 +493,36 @@
     document.getElementById("account-status").textContent = message;
   }
 
+  function displayPersonalInfo(profile) {
+    const form = document.getElementById("personal-info-form");
+    const fields = ["fullName", "phone", "streetAddress", "city", "region", "postalCode", "country"];
+    fields.forEach(function (field) {
+      form.elements.namedItem(field).value = profile && typeof profile[field] === "string" ? profile[field] : "";
+    });
+  }
+
+  function submitPersonalInfo(button) {
+    const form = document.getElementById("personal-info-form");
+    const fields = ["fullName", "phone", "streetAddress", "city", "region", "postalCode", "country"];
+    const profile = {};
+    fields.forEach(function (field) {
+      profile[field] = form.elements.namedItem(field).value.trim();
+    });
+    button.disabled = true;
+    document.getElementById("personal-info-status").textContent = "Saving personal information...";
+    apiRequest("/api/profile", accountToken(), {
+      method: "PUT",
+      body: JSON.stringify({ profile: profile })
+    }).then(function () {
+      document.getElementById("personal-info-status").textContent = "Personal information saved.";
+    }).catch(function (error) {
+      document.getElementById("personal-info-status").textContent =
+        "Could not save personal information: " + error.message;
+    }).then(function () {
+      button.disabled = false;
+    });
+  }
+
   function submitCredentials(action, button) {
     const emailInput = document.getElementById("account-email");
     const passwordInput = document.getElementById("account-password");
@@ -527,9 +558,11 @@
     }
     return apiRequest("/api/me", token).then(function (user) {
       displayAccount(true, user.email);
+      displayPersonalInfo(user.profile);
     }).catch(function (error) {
       localStorage.removeItem(accountTokenKey);
       displayAccount(false, "");
+      displayPersonalInfo(null);
       setAccountMessage(error.message || "Your session could not be verified. Sign in again.");
     });
   }
@@ -569,6 +602,10 @@
       }
       renderLookupHistory();
       setAccountMessage("Lookup history cleared from this browser.");
+    });
+    document.getElementById("personal-info-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      submitPersonalInfo(event.currentTarget.querySelector("#save-personal-info"));
     });
     document.getElementById("account-form").addEventListener("submit", function (event) {
       event.preventDefault();

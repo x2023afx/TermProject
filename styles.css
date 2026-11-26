@@ -131,6 +131,11 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
 .profile-section h2 { margin: 0 0 9px; font-size: 1.03rem; }
 .profile-section > p:not(.eyebrow) { margin-bottom: 0; }
 .profile-section .account-actions { margin-top: 14px; }
+.personal-info-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; max-width: 760px; margin-top: 18px; }
+.personal-info-form label { min-width: 0; }
+.personal-info-wide { grid-column: 1 / -1; }
+.personal-info-form .account-actions { align-items: center; }
+.personal-info-form .account-status { margin: 0; }
 .settings-grid { display: grid; gap: 10px; max-width: 700px; margin-top: 18px; }
 .setting-control { display: flex; justify-content: space-between; align-items: center; gap: 20px; padding: 13px 15px; background: var(--canvas); border: 1px solid var(--border); border-radius: 10px; }
 .setting-control > span { display: grid; gap: 3px; }
@@ -172,8 +177,9 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
   nav a { font-size: .8rem; }
   .data-badge { margin-left: auto; }
   main { padding: 27px 15px 36px; }
-  .stock-search, .account-form { grid-template-columns: 1fr; }
+  .stock-search, .account-form, .personal-info-form { grid-template-columns: 1fr; }
   .stock-search .primary-button { width: 100%; }
+  .personal-info-wide { grid-column: auto; }
   .overview-grid { grid-template-columns: 1fr; }
   .quote-card { grid-column: auto; }
   .quote-card, .projection-card, .confidence-card { padding: 17px; }

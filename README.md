@@ -19,13 +19,14 @@ The frontend is plain HTML, CSS, and JavaScript with no build step.
 2. Deploy `worker.js` to the Worker named `pace-pattern-private` (or update `STARTUP.apiBaseUrl` in `data.js` to the new Worker URL).
 3. Configure `CORS_ORIGIN` on the Worker to the exact public Pages origin. The existing public site is `https://morgagemypyarlay.pages.dev`.
 4. To enable account sign-in, bind the existing Cloudflare D1 database as `DB` and set `ACCOUNTS_ENABLED=true`. Do not replace or recreate a database containing existing data. The current schema and migration preserve existing account rows; for a database that has the original `users` table but has not had username/password columns added, run `migrations/0002_username_password.sql` once before deployment.
-5. The app validates email syntax and creates email/password accounts directly in D1. It does not send confirmation, login, or other email. Passwords are stored as salted PBKDF2-SHA-256 hashes, never as plain text. An email address is not proof of identity because ownership is not verified.
+5. To support saved personal details for existing accounts, run `migrations/0003_user_profile.sql` once against the existing D1 database before deploying the Worker. For a new database, the profile columns are included in `schema.sql`.
+6. The app validates email syntax and creates email/password accounts directly in D1. It does not send confirmation, login, or other email. Passwords are stored as salted PBKDF2-SHA-256 hashes, never as plain text. An email address is not proof of identity because ownership is not verified.
 
 The stock research page works without an account. Accounts are only for sign-in and account management. The Worker does not submit trades or store a portfolio.
 
 ## Privacy and account data
 
-Email addresses, password hashes, sessions, and account rate-limit hashes are stored in the bound D1 database. Session tokens and up to ten recent stock lookup symbols are kept in this browser's local storage; lookup history is not sent to the server. Sign out on shared devices. The account page can delete the account. Existing sports-journal tables in a previously provisioned D1 database are left untouched by the application.
+Email addresses, personal details, password hashes, sessions, and account rate-limit hashes are stored in the bound D1 database. Session tokens and up to ten recent stock lookup symbols are kept in this browser's local storage; lookup history is not sent to the server. Sign out on shared devices. The account page can delete the account. Existing sports-journal tables in a previously provisioned D1 database are left untouched by the application.
 
 Display preferences (dark mode, chart range, and currency) are stored in this browser. Currency conversion uses Frankfurter reference rates, which are delayed and may not be available for every market currency; if conversion fails, prices remain in the security's market currency.
 
@@ -40,3 +41,4 @@ Display preferences (dark mode, chart range, and currency) are stored in this br
 | `worker.js` | Yahoo Finance data proxy, projection algorithm, and account API |
 | `schema.sql` | D1 schema for new installations |
 | `migrations/0002_username_password.sql` | Adds password-account columns to the original users table |
+| `migrations/0003_user_profile.sql` | Adds optional personal profile fields to users |
