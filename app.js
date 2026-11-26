@@ -515,11 +515,15 @@
             }
 
             trendChart.addEventListener("pointermove", function (event) {
-              const bounds = trendChart.getBoundingClientRect();
-              if (!bounds.width) {
+              const screenMatrix = trendChart.getScreenCTM();
+              if (!screenMatrix) {
                 return;
               }
-              const progress = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+              const pointer = trendChart.createSVGPoint();
+              pointer.x = event.clientX;
+              pointer.y = event.clientY;
+              const chartPoint = pointer.matrixTransform(screenMatrix.inverse());
+              const progress = Math.max(0, Math.min(1, chartPoint.x / 720));
               showPoint(Math.round(progress * (stock.history.length - 1)));
             });
             trendChart.addEventListener("pointerleave", function () {
