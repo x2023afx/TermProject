@@ -843,7 +843,8 @@
     let setActiveOption = function () {};
     symbolInput.addEventListener("focus", function () {
       symbolInput.value = "";
-      searchStatus.textContent = "Type a ticker or company name to search available stocks and ETFs.";
+      setActiveOption = renderStockSuggestions([], "");
+      searchStatus.textContent = "Popular stocks and ETFs. Type to search by ticker or company name.";
     });
     symbolInput.addEventListener("blur", function () {
       if (!symbolInput.value.trim()) {
