@@ -2,6 +2,7 @@
 
 const YAHOO_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/";
 const YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search";
+const YAHOO_TRENDING_URL = "https://query1.finance.yahoo.com/v1/finance/trending/US";
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 100000;
 const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
@@ -333,6 +334,58 @@ async function fetchMarketNews() {
   return stories;
 }
 
+async function fetchTrendingSymbols() {
+  const url = new URL(YAHOO_TRENDING_URL);
+  url.searchParams.set("count", "30");
+  const response = await fetch(url.toString(), {
+    headers: {
+      "accept": "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; CrystalBallStocks market research)"
+    }
+  });
+  if (!response.ok) {
+    throw new Error("Yahoo Finance trending stocks returned HTTP " + response.status + ".");
+  }
+  const payload = await response.json();
+  const results = payload && payload.finance && Array.isArray(payload.finance.result)
+    ? payload.finance.result
+    : [];
+  const quotes = results[0] && Array.isArray(results[0].quotes) ? results[0].quotes : [];
+  return Array.from(new Set(quotes.map(function (quote) {
+    return quote && typeof quote.symbol === "string" ? quote.symbol.toUpperCase() : "";
+  }).filter(function (symbol) {
+    return SYMBOL_PATTERN.test(symbol);
+  }))).slice(0, 20);
+}
+
+async function fetchSymbolHeadlines(symbol) {
+  const url = new URL(YAHOO_SEARCH_URL);
+  url.searchParams.set("q", symbol);
+  url.searchParams.set("quotesCount", "0");
+  url.searchParams.set("newsCount", "3");
+  const response = await fetch(url.toString(), {
+    headers: {
+      "accept": "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; CrystalBallStocks market research)"
+    }
+  });
+  if (!response.ok) {
+    throw new Error("Yahoo Finance news returned HTTP " + response.status + " for " + symbol + ".");
+  }
+  const payload = await response.json();
+  const news = payload && Array.isArray(payload.news) ? payload.news : [];
+  return news.filter(function (story) {
+    return story && typeof story.title === "string" && typeof story.link === "string" &&
+      /^https?:\/\//i.test(story.link);
+  }).slice(0, 2).map(function (story) {
+    return {
+      title: story.title,
+      publisher: typeof story.publisher === "string" ? story.publisher : "Yahoo Finance",
+      link: story.link
+    };
+  });
+}
+
 function mean(values) {
   return values.reduce(function (sum, value) { return sum + value; }, 0) / values.length;
 }
@@ -600,6 +653,71 @@ async function handleApi(request, url, env) {
         updatedAt: new Date().toISOString(),
         stocks: stocks,
         unavailableCount: results.length - stocks.length
+      },
+      status: 200
+    };
+  }
+
+  if (url.pathname === "/api/research-candidates" && request.method === "GET") {
+    const period = url.searchParams.get("period") || "3m";
+    if (!Object.prototype.hasOwnProperty.call(MARKET_MOVER_RANGE_COUNTS, period)) {
+      return jsonError("Choose a supported research timeframe.", 400);
+    }
+    const symbols = await fetchTrendingSymbols();
+    if (!symbols.length) {
+      return jsonError("Yahoo Finance returned no currently trending stocks.", 502);
+    }
+    const historyResults = await Promise.allSettled(symbols.map(function (symbol) {
+      return fetchStockHistory(symbol);
+    }));
+    const rangeCount = MARKET_MOVER_RANGE_COUNTS[period];
+    const candidates = historyResults.map(function (result) {
+      if (result.status !== "fulfilled") {
+        return null;
+      }
+      const history = result.value.history.slice(-(rangeCount + 1));
+      if (history.length < 2) {
+        return null;
+      }
+      const first = history[0];
+      const last = history[history.length - 1];
+      const previous = result.value.history.length > 1
+        ? result.value.history[result.value.history.length - 2]
+        : last;
+      return {
+        symbol: result.value.symbol,
+        name: result.value.name,
+        currency: result.value.currency,
+        price: last.close,
+        priceDate: last.date,
+        dailyChange: last.close / previous.close - 1,
+        periodReturn: last.close / first.close - 1,
+        history: history.map(function (item) {
+          return { date: item.date, close: item.close };
+        })
+      };
+    }).filter(Boolean).sort(function (left, right) {
+      return Math.abs(right.periodReturn) - Math.abs(left.periodReturn);
+    }).slice(0, 8);
+    if (!candidates.length) {
+      return jsonError("Historical trends are unavailable for trending stocks right now.", 502);
+    }
+    const headlineResults = await Promise.allSettled(candidates.map(function (stock) {
+      return fetchSymbolHeadlines(stock.symbol);
+    }));
+    candidates.forEach(function (stock, index) {
+      const result = headlineResults[index];
+      stock.headlines = result.status === "fulfilled" ? result.value : [];
+      stock.headlinesAvailable = result.status === "fulfilled";
+    });
+    return {
+      body: {
+        period: period,
+        updatedAt: new Date().toISOString(),
+        stocks: candidates,
+        unavailableCount: historyResults.filter(function (result) {
+          return result.status === "rejected";
+        }).length
       },
       status: 200
     };

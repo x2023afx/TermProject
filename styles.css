@@ -105,6 +105,28 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
 select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--surface); border: 1px solid var(--border); border-radius: 9px; font: inherit; font-size: .9rem; }
 .status-row { display: flex; justify-content: space-between; gap: 12px; margin: 15px 2px 12px; color: var(--muted); font-size: .76rem; }
 .status-row p { margin: 0; }
+.research-candidates-panel { margin: 0 0 16px; padding: 20px; }
+.candidate-period-control { display: grid; min-width: 140px; gap: 4px; }
+.candidate-period-control .field-label { margin-bottom: 0; }
+.candidate-period-control select { height: 36px; font-size: .75rem; }
+.candidate-status { margin: -5px 0 12px; color: var(--muted); font-size: .68rem; }
+.candidate-list { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 290px), 1fr)); gap: 12px; }
+.candidate-card { display: grid; min-width: 0; gap: 8px; padding: 14px; background: var(--canvas); border: 1px solid var(--border); border-radius: 12px; }
+.candidate-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
+.candidate-identity, .candidate-returns { display: grid; min-width: 0; }
+.candidate-identity strong { font-size: .86rem; }
+.candidate-identity span, .candidate-returns small, .candidate-price { color: var(--muted); font-size: .67rem; }
+.candidate-returns { text-align: right; }
+.candidate-returns strong { font-size: .85rem; font-variant-numeric: tabular-nums; }
+.candidate-chart { display: block; width: 100%; height: 72px; overflow: visible; }
+.candidate-price { margin: 0; }
+.candidate-news-label { margin: 0; font-size: .7rem; font-weight: 750; }
+.candidate-headlines { display: grid; gap: 6px; }
+.candidate-headlines a, .candidate-headlines p { margin: 0; color: var(--muted); font-size: .68rem; line-height: 1.4; }
+.candidate-headlines a { text-decoration: none; }
+.candidate-headlines a:hover { color: var(--green-dark); text-decoration: underline; }
+.candidate-analyze { justify-self: start; }
+.candidate-disclaimer { margin: 12px 0 0; color: var(--muted); font-size: .65rem; }
 .overview-grid { display: grid; grid-template-columns: 1.15fr 1fr 1fr; gap: 13px; }
 .quote-card, .projection-card, .confidence-card { min-width: 0; padding: 19px; }
 .quote-heading { display: flex; justify-content: space-between; align-items: flex-start; gap: 10px; }
@@ -330,6 +352,8 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
   .comparable-row { grid-template-columns: .4fr .9fr 1fr; font-size: .7rem; }
   .chart-panel .panel-title, .watchlist-panel .panel-title { align-items: flex-start; flex-direction: column; }
   .benchmark-control, .watchlist-period-control { width: 100%; }
+  .research-candidates-panel > .panel-title { align-items: flex-start; flex-direction: column; }
+  .candidate-period-control { width: 100%; }
   .watchlist-stock { grid-template-columns: minmax(0, 1fr) auto; gap: 4px 10px; }
   .watchlist-price { text-align: right; }
   .watchlist-stock > small { grid-column: 2; grid-row: 2; }

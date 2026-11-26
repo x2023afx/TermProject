@@ -98,6 +98,30 @@
         <p id="market-updated"></p>
       </div>
 
+      <section class="panel research-candidates-panel" aria-labelledby="research-candidates-title">
+        <div class="panel-title">
+          <div>
+            <h2 id="research-candidates-title">Stocks to research</h2>
+            <p>Currently trending tickers ranked by historical price movement, with related headlines for context.</p>
+          </div>
+          <label class="candidate-period-control" for="candidate-period">
+            <span class="field-label">Trend period</span>
+            <select id="candidate-period">
+              <option value="1m">1 month</option>
+              <option value="3m" selected>3 months</option>
+              <option value="6m">6 months</option>
+            </select>
+          </label>
+        </div>
+        <p id="candidate-status" class="candidate-status" role="status" aria-live="polite">
+          Loading trending tickers and related headlines...
+        </p>
+        <div id="candidate-list" class="candidate-list">
+          <p class="chart-empty">Loading historical trends and news context...</p>
+        </div>
+        <p class="candidate-disclaimer">Research ideas only, not buy or sell recommendations. This screens currently trending Yahoo Finance tickers, not every listed stock. Past price movement and headlines do not predict future results.</p>
+      </section>
+
       <section id="stock-overview" class="overview-grid" aria-label="Selected stock overview" hidden>
         <article class="panel quote-card">
           <div class="quote-heading">

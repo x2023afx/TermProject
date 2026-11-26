@@ -6,6 +6,8 @@ The Popular stocks tab ranks a selection of widely followed stocks and ETFs by h
 
 The stock research chart can compare a selected stock with the S&P 500 (SPY) or Nasdaq-100 (QQQ) over the same dates. A browser-local watchlist saves up to eight symbols and shows latest prices, daily changes, and returns over a selectable period; watchlist data does not sync across browsers or devices.
 
+The main page includes research candidates from Yahoo Finance's currently trending ticker list, ranked by absolute historical movement and paired with ticker-related headlines. This is a limited discovery list, not a scan of every listed stock or a buy/sell recommendation.
+
 The selected stock's quote card can export its quote, projections, comparable returns, model confidence, and daily history as a CSV file that opens in Excel.
 
 The News page loads market headlines from Yahoo Finance. Desktop side rails display clearly labeled sample advertisements; these are fictional mockups and are not paid placements or real offers.

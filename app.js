@@ -38,6 +38,9 @@
   let marketMoversRequestId = 0;
   let marketMoversLoadedPeriod = "";
   let marketMoversLoadingPeriod = "";
+  let candidateRequestId = 0;
+  let candidateLoadedPeriod = "";
+  let candidateLoadingPeriod = "";
   let newsRequestId = 0;
   let newsLoaded = false;
   const accountToken = function () {
@@ -982,6 +985,136 @@
     container.appendChild(empty);
   }
 
+  function renderResearchCandidates(data) {
+    const list = document.getElementById("candidate-list");
+    list.replaceChildren();
+    data.stocks.forEach(function (stock) {
+      const card = document.createElement("article");
+      card.className = "candidate-card";
+      const heading = document.createElement("div");
+      heading.className = "candidate-heading";
+      const identity = document.createElement("div");
+      identity.className = "candidate-identity";
+      const symbol = document.createElement("strong");
+      symbol.textContent = stock.symbol;
+      const name = document.createElement("span");
+      name.textContent = stock.name || stock.symbol;
+      identity.append(symbol, name);
+      const returns = document.createElement("div");
+      returns.className = "candidate-returns";
+      const periodReturn = document.createElement("strong");
+      periodReturn.className = stock.periodReturn >= 0 ? "positive" : "negative";
+      periodReturn.textContent = formatPercent(stock.periodReturn);
+      const dailyReturn = document.createElement("small");
+      dailyReturn.className = stock.dailyChange > 0 ? "positive" : stock.dailyChange < 0 ? "negative" : "";
+      dailyReturn.textContent = formatPercent(stock.dailyChange) + " today";
+      returns.append(periodReturn, dailyReturn);
+      heading.append(identity, returns);
+
+      const chart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      chart.setAttribute("class", "candidate-chart");
+      chart.setAttribute("viewBox", "0 0 320 72");
+      chart.setAttribute("role", "img");
+      chart.setAttribute("aria-label", stock.symbol + " price trend over " +
+        document.getElementById("candidate-period").selectedOptions[0].textContent);
+      const closes = stock.history.map(function (item) { return item.close; });
+      const min = Math.min.apply(null, closes);
+      const max = Math.max.apply(null, closes);
+      const spread = max - min || max * 0.02 || 1;
+      const path = closes.map(function (value, index) {
+        const x = index * 320 / Math.max(closes.length - 1, 1);
+        const y = 5 + (max - value) * 62 / spread;
+        return (index === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2);
+      }).join(" ");
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      line.setAttribute("d", path);
+      line.setAttribute("fill", "none");
+      line.setAttribute("stroke", getComputedStyle(document.body)
+        .getPropertyValue(stock.periodReturn >= 0 ? "--positive" : "--red").trim());
+      line.setAttribute("stroke-width", "2.5");
+      line.setAttribute("stroke-linecap", "round");
+      line.setAttribute("stroke-linejoin", "round");
+      chart.appendChild(line);
+
+      const price = document.createElement("p");
+      price.className = "candidate-price";
+      price.textContent = formatCurrency(stock.price, stock.currency) + " · close " + stock.priceDate;
+      const newsHeading = document.createElement("p");
+      newsHeading.className = "candidate-news-label";
+      newsHeading.textContent = "Related headlines";
+      const headlines = document.createElement("div");
+      headlines.className = "candidate-headlines";
+      if (!stock.headlinesAvailable) {
+        const unavailable = document.createElement("p");
+        unavailable.textContent = "Headlines are unavailable right now.";
+        headlines.appendChild(unavailable);
+      } else if (!stock.headlines.length) {
+        const empty = document.createElement("p");
+        empty.textContent = "No related headlines found.";
+        headlines.appendChild(empty);
+      } else {
+        stock.headlines.forEach(function (story) {
+          const link = document.createElement("a");
+          link.href = story.link;
+          link.target = "_blank";
+          link.rel = "noopener noreferrer";
+          link.textContent = story.title + " · " + story.publisher;
+          headlines.appendChild(link);
+        });
+      }
+      const analyze = document.createElement("button");
+      analyze.type = "button";
+      analyze.className = "text-button candidate-analyze";
+      analyze.textContent = "Analyze " + stock.symbol;
+      analyze.addEventListener("click", function () {
+        symbolInput.value = stock.symbol;
+        loadStock(stock.symbol);
+        window.scrollTo({ top: 0, behavior: "smooth" });
+      });
+      card.append(heading, chart, price, newsHeading, headlines, analyze);
+      list.appendChild(card);
+    });
+    if (!data.stocks.length) {
+      showEmptyMessage(list, "No trending tickers with enough historical data were found.");
+    }
+  }
+
+  function loadResearchCandidates() {
+    const period = document.getElementById("candidate-period").value;
+    if (period === candidateLoadedPeriod || period === candidateLoadingPeriod) {
+      return;
+    }
+    const requestId = ++candidateRequestId;
+    candidateLoadingPeriod = period;
+    const status = document.getElementById("candidate-status");
+    status.textContent = "Finding trending tickers and loading their historical trends and headlines...";
+    showEmptyMessage(document.getElementById("candidate-list"), "Loading research candidates...");
+    apiRequest("/api/research-candidates?period=" + encodeURIComponent(period), "")
+      .then(function (data) {
+        if (requestId !== candidateRequestId) {
+          return;
+        }
+        renderResearchCandidates(data);
+        candidateLoadedPeriod = period;
+        status.textContent = "Updated " + new Date(data.updatedAt).toLocaleString() +
+          " · ranked by absolute historical movement" +
+          (data.unavailableCount ? " · " + data.unavailableCount + " price histories unavailable" : "") +
+          ".";
+      })
+      .catch(function (error) {
+        if (requestId === candidateRequestId) {
+          status.textContent = error.message;
+          showEmptyMessage(document.getElementById("candidate-list"),
+            "Research candidates are unavailable right now. Try again later.");
+        }
+      })
+      .then(function () {
+        if (requestId === candidateRequestId) {
+          candidateLoadingPeriod = "";
+        }
+      });
+  }
+
   function renderNews(stories) {
     const list = document.getElementById("news-list");
     list.replaceChildren();
@@ -1378,6 +1511,7 @@
     }
     if (currentView === "stocks") {
       loadWatchlist();
+      loadResearchCandidates();
     }
   }
 
@@ -1792,6 +1926,9 @@
   document.getElementById("movers-period").addEventListener("change", function () {
     marketMoversLoadedPeriod = "";
     loadMarketMovers();
+  });
+  document.getElementById("candidate-period").addEventListener("change", function () {
+    loadResearchCandidates();
   });
   document.getElementById("news-refresh").addEventListener("click", function () {
     loadNews(true);
