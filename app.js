@@ -169,7 +169,7 @@
       displayPersonalInfo(null);
     }
     updateWatchlistToggle();
-    if (window.location.hash.slice(1) === "stocks") {
+    if (!signedIn || window.location.hash.slice(1) === "stocks") {
       loadWatchlist();
     }
     renderLookupHistory();
@@ -273,11 +273,11 @@
     if (!accountStatusLoaded) {
       button.textContent = "Checking sign-in...";
     } else if (!accountSignedIn) {
-      button.textContent = saved ? "Sign in to manage watchlist" : "Sign in to add to watchlist";
+      button.textContent = "Sign in to manage watchlist";
     } else {
       button.textContent = saved ? "Remove from watchlist" : "Add to watchlist";
     }
-    button.setAttribute("aria-pressed", String(Boolean(saved)));
+    button.setAttribute("aria-pressed", String(Boolean(accountSignedIn && saved)));
   }
 
   function requireWatchlistSignIn() {
@@ -292,13 +292,13 @@
     return false;
   }
 
-  function renderWatchlist(stocks) {
+  function renderWatchlist(stocks, emptyMessage) {
     const list = document.getElementById("watchlist-list");
     list.replaceChildren();
     if (!stocks.length) {
       const empty = document.createElement("p");
       empty.className = "chart-empty";
-      empty.textContent = "Add a stock from its quote card to start your watchlist.";
+      empty.textContent = emptyMessage || "Add a stock from its quote card to start your watchlist.";
       list.appendChild(empty);
       return;
     }
@@ -362,6 +362,13 @@
     const status = document.getElementById("watchlist-status");
     const list = document.getElementById("watchlist-list");
     const requestId = ++watchlistRequestId;
+    if (!accountStatusLoaded || !accountSignedIn) {
+      status.textContent = accountStatusLoaded ? "Sign in to view your watchlist." : "";
+      renderWatchlist([], accountStatusLoaded
+        ? "Your watchlist is hidden while you are signed out."
+        : "Checking sign-in status...");
+      return;
+    }
     if (!symbols.length) {
       status.textContent = "";
       renderWatchlist([]);
