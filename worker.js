@@ -306,10 +306,25 @@ async function fetchMarketNews() {
     const published = Number.isFinite(story.providerPublishTime)
       ? new Date(story.providerPublishTime * 1000)
       : null;
+    const resolutions = story.thumbnail && Array.isArray(story.thumbnail.resolutions)
+      ? story.thumbnail.resolutions
+      : [];
+    const thumbnail = resolutions.slice().reverse().find(function (resolution) {
+      if (!resolution || typeof resolution.url !== "string") {
+        return false;
+      }
+      try {
+        const imageUrl = new URL(resolution.url);
+        return imageUrl.protocol === "https:" || imageUrl.protocol === "http:";
+      } catch (error) {
+        return false;
+      }
+    });
     return {
       title: story.title,
       publisher: typeof story.publisher === "string" ? story.publisher : "Yahoo Finance",
       link: story.link,
+      imageUrl: thumbnail ? thumbnail.url : "",
       publishedAt: published && Number.isFinite(published.getTime())
         ? published.toISOString()
         : ""

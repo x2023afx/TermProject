@@ -373,12 +373,8 @@
     }, 50);
   }
 
-  function setMarketStatus(message, connected) {
+  function setMarketStatus(message) {
     document.getElementById("market-status").textContent = message;
-    const badge = document.getElementById("data-badge");
-    badge.classList.toggle("is-connected", connected);
-    badge.classList.toggle("is-disconnected", !connected);
-    badge.lastChild.textContent = connected ? " Market data available" : " Market data unavailable";
   }
 
   function formatCurrency(value, currencyCode) {
@@ -893,6 +889,18 @@
     stories.forEach(function (story) {
       const article = document.createElement("article");
       article.className = "panel news-card";
+      if (story.imageUrl) {
+        const image = document.createElement("img");
+        image.className = "news-image";
+        image.src = story.imageUrl;
+        image.alt = "";
+        image.loading = "lazy";
+        image.referrerPolicy = "no-referrer";
+        image.addEventListener("error", function () {
+          image.remove();
+        }, { once: true });
+        article.appendChild(image);
+      }
       const source = document.createElement("p");
       source.className = "news-source";
       source.textContent = story.publisher || "Yahoo Finance";
@@ -1052,7 +1060,7 @@
     }
     renderForecast(data, currencyCode, exchangeRate);
     renderComparables(data);
-    setMarketStatus("Showing latest available daily market history for " + data.symbol + ".", true);
+    setMarketStatus("Showing latest available daily market history for " + data.symbol + ".");
   }
 
   function loadStock(symbol) {
@@ -1063,7 +1071,7 @@
     lastStockSymbol = normalized;
     symbolInput.value = normalized;
     document.getElementById("stock-submit").disabled = true;
-    setMarketStatus("Loading " + normalized + " and comparable historical prices...", true);
+    setMarketStatus("Loading " + normalized + " and comparable historical prices...");
     document.getElementById("market-updated").textContent = "";
     document.getElementById("stock-overview").hidden = true;
     document.getElementById("price-chart").hidden = true;
@@ -1081,7 +1089,7 @@
       })
       .catch(function (error) {
         if (requestId === stockRequestId) {
-          setMarketStatus(error.message, false);
+          setMarketStatus(error.message);
           document.getElementById("stock-overview").hidden = true;
           document.getElementById("chart-empty").hidden = false;
           document.getElementById("chart-empty").textContent = "Market history is unavailable for this symbol.";

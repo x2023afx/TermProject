@@ -27,9 +27,6 @@ body[data-theme="dark"] {
   --border: #343952;
   --red: #ef998c;
 }
-body[data-theme="dark"] .data-badge { color: var(--muted); background: #202923; }
-body[data-theme="dark"] .data-badge.is-connected { color: #b7dfc7; background: #203328; }
-body[data-theme="dark"] .data-badge.is-disconnected { color: #e5bf8f; background: #382d20; }
 body[data-theme="dark"] input, body[data-theme="dark"] select, body[data-theme="dark"] .secondary-button {
   color: var(--ink);
   background: #252940;
@@ -56,11 +53,6 @@ nav { display: flex; align-items: center; gap: 25px; }
 nav a { padding: 8px 11px; color: var(--muted); border-radius: 9px; font-size: .88rem; font-weight: 600; text-decoration: none; transition: color .16s ease, background .16s ease; }
 nav a:hover { color: var(--green-dark); background: var(--green-pale); }
 nav a[aria-current="page"] { color: var(--green-dark); background: var(--green-pale); }
-.data-badge { margin-left: auto; padding: 7px 11px; color: #6b716b; background: #f1f5f1; border: 1px solid var(--border); border-radius: 99px; font-size: .73rem; font-weight: 650; white-space: nowrap; }
-.data-badge span { display: inline-block; width: 7px; height: 7px; margin: 0 5px 1px 0; border-radius: 50%; background: #be8540; }
-.data-badge.is-connected { color: #35684e; background: #eaf3ec; }
-.data-badge.is-connected span { background: #39805b; }
-.data-badge.is-disconnected { color: #8a653d; background: #faf2e7; }
 .header-button, .primary-button { color: #fff; background: var(--green); border: 1px solid var(--green); border-radius: 9px; font: inherit; font-size: .85rem; font-weight: 650; text-decoration: none; cursor: pointer; }
 .header-button { display: inline-flex; align-items: center; justify-content: center; padding: 9px 15px; white-space: nowrap; }
 .header-button.is-signed-in { display: grid; width: 42px; height: 42px; padding: 3px; place-items: center; border-radius: 50%; }
@@ -217,7 +209,9 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .notice p { margin: 0; color: #5e5b72; font-size: .74rem; }
 .news-status { min-height: 1.4em; color: var(--muted); font-size: .75rem; }
 .news-list { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; }
-.news-card { min-width: 0; padding: 17px; }
+.news-card { min-width: 0; overflow: hidden; padding: 0 17px 17px; }
+.news-image { display: block; width: calc(100% + 34px); max-height: 220px; aspect-ratio: 16 / 9; margin: 0 -17px 15px; object-fit: cover; background: var(--green-pale); }
+.news-image:not([src]) { display: none; }
 .news-source { margin-bottom: 8px; color: var(--green-dark); font-size: .67rem; font-weight: 750; }
 .news-card h2 { margin: 0; font-size: .98rem; line-height: 1.4; }
 .news-card h2 a { text-decoration: none; }
@@ -286,7 +280,6 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
   .news-list { grid-template-columns: 1fr; }
   .site-header { min-height: 66px; padding: 12px 20px; gap: 15px; flex-wrap: wrap; }
   nav { gap: 15px; }
-  .data-badge { font-size: .66rem; }
   main { padding: 34px 20px 44px; }
   .overview-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .quote-card { grid-column: 1 / -1; }
@@ -307,7 +300,6 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
   .site-header { gap: 10px; }
   nav { order: 3; width: 100%; gap: 9px; justify-content: space-between; }
   nav a { font-size: .72rem; }
-  .data-badge { margin-left: auto; }
   main { padding: 27px 15px 36px; }
   .stock-search, .account-form, .personal-info-form, .signup-details { grid-template-columns: 1fr; }
   .movers-controls { align-items: stretch; flex-direction: column; gap: 10px; }
