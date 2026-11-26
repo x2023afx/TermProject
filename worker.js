@@ -348,7 +348,7 @@ function buildStockResponse(symbol, target, peerData) {
     changePercent: currentPrice / previousClose - 1,
     priceDate: target.history[target.history.length - 1].date,
     updatedAt: new Date().toISOString(),
-    history: target.history.slice(-65),
+    history: target.history.slice(-130),
     forecast: forecast,
     projectionPercent: Math.pow(1 + dailyMean, 2) - 1,
     comparables: comparableRows,

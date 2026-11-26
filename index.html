@@ -91,7 +91,7 @@
           <div class="panel-title">
             <div>
               <h2>Recent price history</h2>
-              <p>Daily closing prices · past 3 months</p>
+              <p id="chart-range-label">Daily closing prices · past 3 months</p>
             </div>
           </div>
           <div id="chart-empty" class="chart-empty">Choose a stock to load its historical prices.</div>
@@ -174,7 +174,37 @@
         <div id="account-settings" class="profile-section">
           <p class="eyebrow">Settings</p>
           <h2>Account settings</h2>
-          <p class="muted small">Manage your sign-in and locally saved lookup history.</p>
+          <p class="muted small">Preferences are saved in this browser. Converted prices use reference exchange rates and may not reflect a live trading rate.</p>
+          <div class="settings-grid">
+            <label class="setting-control" for="dark-mode-setting">
+              <span>
+                <strong>Dark mode</strong>
+                <small>Use a darker color theme.</small>
+              </span>
+              <input id="dark-mode-setting" type="checkbox">
+            </label>
+            <label class="setting-control setting-select" for="currency-setting">
+              <span>
+                <strong>Display currency</strong>
+                <small>Convert prices to your preferred currency.</small>
+              </span>
+              <select id="currency-setting">
+                <option value="MARKET">Market currency</option>
+              </select>
+            </label>
+            <label class="setting-control setting-select" for="date-range-setting">
+              <span>
+                <strong>Stock chart range</strong>
+                <small>Choose the history shown in the chart.</small>
+              </span>
+              <select id="date-range-setting">
+                <option value="1m">1 month</option>
+                <option value="3m">3 months</option>
+                <option value="6m">6 months</option>
+              </select>
+            </label>
+          </div>
+          <p id="currency-status" class="muted small" role="status" aria-live="polite"></p>
           <div class="account-actions">
             <button type="button" class="secondary-button" id="clear-lookups">Clear lookup history</button>
             <button type="button" class="secondary-button" id="sign-out">Sign out</button>

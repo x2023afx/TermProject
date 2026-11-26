@@ -3,10 +3,26 @@
 
   const accountTokenKey = "northstarAccountToken";
   const lookupHistoryKey = "northstarLookupHistory";
+  const settingsKey = "northstarSettings";
   const maxLookups = 10;
+  const currencies = {
+    AUD: "Australian Dollar", BRL: "Brazilian Real", CAD: "Canadian Dollar",
+    CHF: "Swiss Franc", CNY: "Chinese Renminbi Yuan", CZK: "Czech Koruna",
+    DKK: "Danish Krone", EUR: "Euro", GBP: "British Pound", HKD: "Hong Kong Dollar",
+    HUF: "Hungarian Forint", IDR: "Indonesian Rupiah", ILS: "Israeli New Shekel",
+    INR: "Indian Rupee", ISK: "Icelandic Krona", JPY: "Japanese Yen",
+    KRW: "South Korean Won", MXN: "Mexican Peso", MYR: "Malaysian Ringgit",
+    NOK: "Norwegian Krone", NZD: "New Zealand Dollar", PHP: "Philippine Peso",
+    PLN: "Polish Zloty", RON: "Romanian Leu", SEK: "Swedish Krona",
+    SGD: "Singapore Dollar", THB: "Thai Baht", TRY: "Turkish Lira",
+    USD: "United States Dollar", ZAR: "South African Rand"
+  };
+  const exchangeRates = new Map();
   const stockForm = document.getElementById("stock-form");
   const symbolInput = document.getElementById("stock-symbol");
   let accountSignedIn = false;
+  let currentStockData = null;
+  let stockRenderId = 0;
   const accountToken = function () {
     try {
       return localStorage.getItem(accountTokenKey) || "";
@@ -42,6 +58,72 @@
         }
         return data;
       });
+    });
+  }
+
+  function readSettings() {
+    const defaults = { darkMode: false, currency: "MARKET", dateRange: "3m" };
+    try {
+      const saved = JSON.parse(localStorage.getItem(settingsKey) || "{}");
+      return {
+        darkMode: typeof saved.darkMode === "boolean" ? saved.darkMode : defaults.darkMode,
+        currency: saved.currency === "MARKET" || Object.prototype.hasOwnProperty.call(currencies, saved.currency)
+          ? saved.currency
+          : defaults.currency,
+        dateRange: ["1m", "3m", "6m"].indexOf(saved.dateRange) !== -1
+          ? saved.dateRange
+          : defaults.dateRange
+      };
+    } catch (error) {
+      return defaults;
+    }
+  }
+
+  function saveSettings(settings) {
+    try {
+      localStorage.setItem(settingsKey, JSON.stringify(settings));
+      return true;
+    } catch (error) {
+      document.getElementById("currency-status").textContent =
+        "Could not save preferences in this browser.";
+      return false;
+    }
+  }
+
+  function applyTheme(darkMode) {
+    document.body.dataset.theme = darkMode ? "dark" : "light";
+  }
+
+  function initializeSettings() {
+    const settings = readSettings();
+    const currencySelect = document.getElementById("currency-setting");
+    Object.keys(currencies).sort().forEach(function (code) {
+      const option = document.createElement("option");
+      option.value = code;
+      option.textContent = code + " - " + currencies[code];
+      currencySelect.appendChild(option);
+    });
+    document.getElementById("dark-mode-setting").checked = settings.darkMode;
+    currencySelect.value = settings.currency;
+    document.getElementById("date-range-setting").value = settings.dateRange;
+    applyTheme(settings.darkMode);
+
+    document.getElementById("dark-mode-setting").addEventListener("change", function (event) {
+      const next = Object.assign({}, readSettings(), { darkMode: event.currentTarget.checked });
+      applyTheme(next.darkMode);
+      saveSettings(next);
+    });
+    currencySelect.addEventListener("change", function (event) {
+      const next = Object.assign({}, readSettings(), { currency: event.currentTarget.value });
+      if (saveSettings(next) && currentStockData) {
+        renderStock(currentStockData);
+      }
+    });
+    document.getElementById("date-range-setting").addEventListener("change", function (event) {
+      const next = Object.assign({}, readSettings(), { dateRange: event.currentTarget.value });
+      if (saveSettings(next) && currentStockData) {
+        renderStock(currentStockData);
+      }
     });
   }
 
@@ -157,15 +239,46 @@
     }).format(value);
   }
 
+  function getExchangeRate(baseCurrency, targetCurrency) {
+    if (baseCurrency === targetCurrency) {
+      return Promise.resolve(1);
+    }
+    const key = baseCurrency + ":" + targetCurrency;
+    const cached = exchangeRates.get(key);
+    if (cached && Date.now() - cached.fetchedAt < 60 * 60 * 1000) {
+      return Promise.resolve(cached.rate);
+    }
+    const url = "https://api.frankfurter.dev/v1/latest?base=" +
+      encodeURIComponent(baseCurrency) + "&symbols=" + encodeURIComponent(targetCurrency);
+    return fetch(url, { headers: { accept: "application/json" } }).then(function (response) {
+      if (!response.ok) {
+        throw new Error("Exchange-rate service returned HTTP " + response.status + ".");
+      }
+      return response.json();
+    }).then(function (data) {
+      const rate = data && data.rates && Number(data.rates[targetCurrency]);
+      if (!Number.isFinite(rate) || rate <= 0) {
+        throw new Error("No exchange rate is available for " + baseCurrency + " to " + targetCurrency + ".");
+      }
+      exchangeRates.set(key, { rate: rate, fetchedAt: Date.now() });
+      return rate;
+    });
+  }
+
   function formatPercent(value) {
     return (value > 0 ? "+" : "") + (value * 100).toFixed(2) + "%";
   }
 
-  function renderChart(history, currencyCode) {
+  function renderChart(history, currencyCode, exchangeRate) {
     const svg = document.getElementById("price-chart");
     const empty = document.getElementById("chart-empty");
     const range = document.getElementById("chart-range");
-    const recent = history.slice(-65);
+    const settings = readSettings();
+    const rangeCounts = { "1m": 22, "3m": 65, "6m": 130 };
+    const recent = history.slice(-rangeCounts[settings.dateRange]);
+    document.getElementById("chart-range-label").textContent =
+      "Daily closing prices · past " + settings.dateRange.slice(0, 1) + " " +
+      (settings.dateRange === "1m" ? "month" : "months");
     if (recent.length < 2) {
       svg.hidden = true;
       range.hidden = true;
@@ -177,13 +290,14 @@
     const width = 720;
     const height = 250;
     const padding = { top: 16, right: 12, bottom: 20, left: 12 };
-    const values = recent.map(function (item) { return item.close; });
+    const values = recent.map(function (item) { return item.close * (exchangeRate || 1); });
     const min = Math.min.apply(null, values);
     const max = Math.max.apply(null, values);
     const spread = max - min || max * 0.02 || 1;
     const points = recent.map(function (item, index) {
       const x = padding.left + index * (width - padding.left - padding.right) / (recent.length - 1);
-      const y = padding.top + (max - item.close) * (height - padding.top - padding.bottom) / spread;
+      const y = padding.top + (max - item.close * (exchangeRate || 1)) *
+        (height - padding.top - padding.bottom) / spread;
       return { x: x, y: y };
     });
     const path = points.map(function (point, index) {
@@ -204,7 +318,7 @@
       formatCurrency(max, currencyCode) + " high  ·  " + recent[recent.length - 1].date;
   }
 
-  function renderForecast(data) {
+  function renderForecast(data, currencyCode, exchangeRate) {
     const forecastResults = document.getElementById("forecast-results");
     forecastResults.replaceChildren();
     data.forecast.forEach(function (item) {
@@ -213,10 +327,10 @@
       const label = document.createElement("strong");
       label.textContent = "Session " + item.session;
       const point = document.createElement("span");
-      point.textContent = formatCurrency(item.price, data.currency);
+      point.textContent = formatCurrency(item.price * exchangeRate, currencyCode);
       const interval = document.createElement("small");
-      interval.textContent = formatCurrency(item.low, data.currency) + " - " +
-        formatCurrency(item.high, data.currency) + " (80% model range)";
+      interval.textContent = formatCurrency(item.low * exchangeRate, currencyCode) + " - " +
+        formatCurrency(item.high * exchangeRate, currencyCode) + " (80% model range)";
       row.append(label, point, interval);
       forecastResults.appendChild(row);
     });
@@ -252,20 +366,49 @@
   }
 
   function renderStock(data) {
+    currentStockData = data;
+    const renderId = ++stockRenderId;
+    const settings = readSettings();
+    const currencyCode = settings.currency === "MARKET" ? data.currency : settings.currency;
+    const status = document.getElementById("currency-status");
+    status.textContent = settings.currency === "MARKET"
+      ? "Prices use each security's market currency (" + data.currency + ")."
+      : "Loading " + currencyCode + " reference exchange rate...";
+
+    return getExchangeRate(data.currency, currencyCode).then(function (exchangeRate) {
+      if (renderId !== stockRenderId) {
+        return;
+      }
+      renderStockValues(data, currencyCode, exchangeRate);
+      status.textContent = settings.currency === "MARKET"
+        ? "Prices shown in market currency (" + data.currency + ")."
+        : "Prices converted from " + data.currency + " to " + currencyCode +
+          " using a reference rate from Frankfurter; rates may be delayed.";
+    }).catch(function (error) {
+      if (renderId !== stockRenderId) {
+        return;
+      }
+      renderStockValues(data, data.currency, 1);
+      status.textContent = "Could not convert to " + currencyCode + ". Showing market currency (" +
+        data.currency + "). " + error.message;
+    });
+  }
+
+  function renderStockValues(data, currencyCode, exchangeRate) {
     const overview = document.getElementById("stock-overview");
     overview.hidden = false;
     document.getElementById("company-name").textContent = data.name || data.symbol;
     document.getElementById("quote-symbol").textContent = data.symbol;
-    document.getElementById("quote-price").textContent = formatCurrency(data.price, data.currency);
+    document.getElementById("quote-price").textContent = formatCurrency(data.price * exchangeRate, currencyCode);
     const quoteChange = document.getElementById("quote-change");
-    quoteChange.textContent = formatCurrency(data.change, data.currency) + " (" +
+    quoteChange.textContent = formatCurrency(data.change * exchangeRate, currencyCode) + " (" +
       formatPercent(data.changePercent) + ") vs previous close";
     quoteChange.classList.toggle("positive", data.change >= 0);
     quoteChange.classList.toggle("negative", data.change < 0);
     document.getElementById("quote-date").textContent = "As of " + data.priceDate;
     document.getElementById("projection-change").textContent = formatPercent(data.projectionPercent);
     document.getElementById("projection-price").textContent =
-      "Estimated two-session price: " + formatCurrency(data.forecast[1].price, data.currency);
+      "Estimated two-session price: " + formatCurrency(data.forecast[1].price * exchangeRate, currencyCode);
     const confidence = document.getElementById("model-confidence");
     confidence.textContent = data.model.directionalAccuracy === null
       ? "Not available"
@@ -276,8 +419,8 @@
         : "Directional accuracy over " + data.model.backtestCount + " past two-session tests; not a probability of future success.";
     document.getElementById("market-updated").textContent =
       "Market history retrieved " + new Date(data.updatedAt).toLocaleString();
-    renderChart(data.history, data.currency);
-    renderForecast(data);
+    renderChart(data.history, currencyCode, exchangeRate);
+    renderForecast(data, currencyCode, exchangeRate);
     renderComparables(data);
     setMarketStatus("Showing latest available daily market history for " + data.symbol + ".", true);
   }
@@ -461,6 +604,7 @@
   }
 
   document.getElementById("account-password").autocomplete = "current-password";
+  initializeSettings();
   STOCKS.forEach(function (stock) {
     const option = document.createElement("option");
     option.value = stock.symbol;

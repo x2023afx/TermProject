@@ -27,6 +27,8 @@ The stock research page works without an account. Accounts are only for sign-in 
 
 Email addresses, password hashes, sessions, and account rate-limit hashes are stored in the bound D1 database. Session tokens and up to ten recent stock lookup symbols are kept in this browser's local storage; lookup history is not sent to the server. Sign out on shared devices. The account page can delete the account. Existing sports-journal tables in a previously provisioned D1 database are left untouched by the application.
 
+Display preferences (dark mode, chart range, and currency) are stored in this browser. Currency conversion uses Frankfurter reference rates, which are delayed and may not be available for every market currency; if conversion fails, prices remain in the security's market currency.
+
 ## Files
 
 | File | Purpose |
