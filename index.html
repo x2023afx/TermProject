@@ -509,16 +509,24 @@
             <p>Related market behavior adds context; it does not determine what happens next.</p>
           </article>
           <article class="method-visual-step">
-            <span class="step-number">03 · ESTIMATE</span>
-            <h3>Possible near-term path</h3>
+            <span class="step-number">03 · TEST THE ESTIMATE</span>
+            <h3>Prediction vs. later price</h3>
             <svg class="method-mini-chart" viewBox="0 0 280 112" role="img"
-              aria-label="Illustrative forecast with a dashed estimate and a widening uncertainty range">
+              aria-label="Illustrative historical test: a stock's past price, a dashed predicted path, and a different solid line for the later actual price">
               <path class="method-gridline" d="M8 26H272M8 56H272M8 86H272"></path>
-              <path class="method-range-band" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40 217 30 244 17 272 5 272 75 244 75 217 63 194 70 171 60 147 78 124 72 101 86 78 78 55 96 32 88 8 98Z"></path>
-              <path class="method-history-line" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40"></path>
-              <path class="method-projection-line" d="M194 40 217 46 244 42 272 38"></path>
+              <path class="method-forecast-divider" d="M150 14V94"></path>
+              <path class="method-history-line" d="M8 75 32 66 55 71 78 47 101 56 124 42 150 50"></path>
+              <path class="method-projection-line" d="M150 50 190 39 230 29 272 21"></path>
+              <path class="method-outcome-line" d="M150 50 190 62 230 53 272 70"></path>
+              <circle class="method-forecast-point" cx="272" cy="21" r="4"></circle>
+              <circle class="method-outcome-point" cx="272" cy="70" r="4"></circle>
             </svg>
-            <p>The estimate looks ahead two sessions; the shaded area highlights uncertainty.</p>
+            <div class="method-chart-legend" aria-label="Chart legend">
+              <span><i class="legend-history"></i>Past price</span>
+              <span><i class="legend-projection"></i>Prediction</span>
+              <span><i class="legend-outcome"></i>Later actual price</span>
+            </div>
+            <p>A historical test compares the estimate made at the divider with the price that followed.</p>
           </article>
         </div>
         <p class="method-visual-note">Conceptual illustration only—not live prices, a specific stock forecast, or a recommendation.</p>

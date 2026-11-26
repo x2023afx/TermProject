@@ -319,8 +319,17 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .method-compare-line { stroke: var(--chart-series-2); }
 .method-compare-line-alt { stroke: var(--chart-series-3); }
 .method-projection-line { stroke: var(--green-dark); stroke-dasharray: 6 5; }
+.method-forecast-divider { stroke: var(--muted); stroke-dasharray: 3 4; stroke-width: 1; }
+.method-outcome-line { fill: none; stroke: var(--chart-series-2); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.method-forecast-point { fill: var(--green-dark); }
+.method-outcome-point { fill: var(--chart-series-2); }
 .method-range-band { fill: var(--green-pale); stroke: none; }
 .method-visual-step > p { min-height: 2.4em; margin: 0; color: var(--muted); font-size: .72rem; }
+.method-chart-legend { display: flex; flex-wrap: wrap; gap: 5px 10px; margin: 0 0 7px; color: var(--muted); font-size: .62rem; }
+.method-chart-legend span { display: inline-flex; align-items: center; gap: 4px; }
+.method-chart-legend i { display: inline-block; width: 13px; border-top: 2px solid var(--green); }
+.method-chart-legend .legend-projection { border-top-style: dashed; border-color: var(--green-dark); }
+.method-chart-legend .legend-outcome { border-color: var(--chart-series-2); }
 .method-visual-note { margin: 12px 0 0; color: var(--muted); font-size: .68rem; text-align: right; }
 .method-card { padding: 21px; }
 .method-card h2 { margin: 15px 0 7px; font-size: 1rem; }
