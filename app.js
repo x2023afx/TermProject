@@ -523,11 +523,46 @@
     });
   }
 
+  function setAccountFormMode(mode) {
+    const form = document.getElementById("account-form");
+    const signupDetails = document.getElementById("signup-details");
+    const actionButton = document.getElementById("account-submit");
+    const createButton = document.getElementById("create-account");
+    const isRegister = mode === "register";
+    form.dataset.mode = isRegister ? "register" : "login";
+    signupDetails.disabled = !isRegister;
+    signupDetails.querySelectorAll("input").forEach(function (input) {
+      input.required = isRegister;
+    });
+    document.getElementById("account-form-heading").textContent =
+      isRegister ? "Create your account" : "Sign in";
+    actionButton.textContent = isRegister ? "Create account" : "Sign in";
+    actionButton.dataset.action = mode;
+    createButton.textContent = isRegister ? "Back to sign in" : "Create account";
+    document.getElementById("account-password").autocomplete =
+      isRegister ? "new-password" : "current-password";
+  }
+
   function submitCredentials(action, button) {
     const emailInput = document.getElementById("account-email");
     const passwordInput = document.getElementById("account-password");
     if (!emailInput.reportValidity() || !passwordInput.reportValidity()) {
       return;
+    }
+    const profile = {};
+    if (action === "register") {
+      const form = document.getElementById("account-form");
+      ["fullName", "phone", "streetAddress", "city", "region", "postalCode", "country"]
+        .forEach(function (field) {
+          const input = form.elements.namedItem(field);
+          if (!input.reportValidity()) {
+            return;
+          }
+          profile[field] = input.value.trim();
+        });
+      if (Object.keys(profile).length !== 7) {
+        return;
+      }
     }
     passwordInput.autocomplete = action === "register" ? "new-password" : "current-password";
     button.disabled = true;
@@ -536,7 +571,8 @@
       method: "POST",
       body: JSON.stringify({
         email: normalizeEmail(emailInput.value),
-        password: passwordInput.value
+        password: passwordInput.value,
+        profile: action === "register" ? profile : undefined
       })
     }).then(function (session) {
       localStorage.setItem(accountTokenKey, session.token);
@@ -609,10 +645,13 @@
     });
     document.getElementById("account-form").addEventListener("submit", function (event) {
       event.preventDefault();
-      submitCredentials("login", event.currentTarget.querySelector('[data-action="login"]'));
+      const action = event.currentTarget.dataset.mode === "register" ? "register" : "login";
+      submitCredentials(action, event.currentTarget.querySelector('[data-action]'));
     });
     document.getElementById("create-account").addEventListener("click", function (event) {
-      submitCredentials("register", event.currentTarget);
+      setAccountFormMode(
+        document.getElementById("account-form").dataset.mode === "register" ? "login" : "register"
+      );
     });
     document.getElementById("sign-out").addEventListener("click", function () {
       const token = accountToken();
@@ -646,6 +685,7 @@
   }
 
   document.getElementById("account-password").autocomplete = "current-password";
+  setAccountFormMode("login");
   initializeSettings();
   STOCKS.forEach(function (stock) {
     const option = document.createElement("option");

@@ -140,7 +140,7 @@
         </div>
       </div>
       <section id="account-signed-out" class="panel account-panel">
-        <h2>Email and password</h2>
+        <h2 id="account-form-heading">Sign in</h2>
         <form id="account-form" class="account-form">
           <label for="account-email">
             <span class="field-label">Email</span>
@@ -152,12 +152,43 @@
             <input id="account-password" name="password" type="password" autocomplete="current-password"
               minlength="12" maxlength="128" required>
           </label>
+          <fieldset id="signup-details" class="signup-details" hidden disabled>
+            <legend>Personal information</legend>
+            <label>
+              <span class="field-label">Full name</span>
+              <input name="fullName" type="text" autocomplete="name" maxlength="120">
+            </label>
+            <label>
+              <span class="field-label">Phone</span>
+              <input name="phone" type="tel" autocomplete="tel" maxlength="40">
+            </label>
+            <label class="personal-info-wide">
+              <span class="field-label">Street address</span>
+              <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200">
+            </label>
+            <label>
+              <span class="field-label">City</span>
+              <input name="city" type="text" autocomplete="address-level2" maxlength="100">
+            </label>
+            <label>
+              <span class="field-label">State / province / region</span>
+              <input name="region" type="text" autocomplete="address-level1" maxlength="100">
+            </label>
+            <label>
+              <span class="field-label">Postal code</span>
+              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="24">
+            </label>
+            <label>
+              <span class="field-label">Country</span>
+              <input name="country" type="text" autocomplete="country-name" maxlength="100">
+            </label>
+          </fieldset>
           <div class="account-actions">
-            <button class="primary-button" type="submit" data-action="login">Sign in</button>
+            <button id="account-submit" class="primary-button" type="submit" data-action="login">Sign in</button>
             <button class="secondary-button" type="button" id="create-account">Create account</button>
           </div>
         </form>
-        <p class="muted small">Use an email address in a valid format and a password of at least 12 characters. Email ownership is not verified.</p>
+        <p class="muted small">Use a valid email address and a password of at least 12 characters. Account creation requires your name, phone, and mailing address. Email ownership is not verified.</p>
         <p id="account-status" class="account-status" role="status" aria-live="polite"></p>
       </section>
       <section id="account-signed-in" class="panel account-panel" hidden>

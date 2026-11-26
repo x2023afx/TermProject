@@ -109,6 +109,10 @@ function validProfileField(value, maxLength) {
   return typeof value === "string" && value.trim().length <= maxLength;
 }
 
+function validRequiredProfileField(value, maxLength) {
+  return validProfileField(value, maxLength) && value.trim().length > 0;
+}
+
 function randomSalt() {
   return bytesToHex(crypto.getRandomValues(new Uint8Array(16)));
 }
@@ -412,6 +416,22 @@ async function handleApi(request, url, env) {
     if (!validPassword(password)) {
       return jsonError("Use a password between 12 and 128 characters.", 400);
     }
+    const profile = body && body.profile;
+    const profileFields = [
+      ["fullName", 120],
+      ["phone", 40],
+      ["streetAddress", 200],
+      ["city", 100],
+      ["region", 100],
+      ["postalCode", 24],
+      ["country", 100]
+    ];
+    if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
+      profileFields.some(function (field) {
+        return !validRequiredProfileField(profile[field[0]], field[1]);
+      })) {
+      return jsonError("Complete all required personal information fields.", 400);
+    }
     const now = Date.now();
     if (!await allowAuthRequest(emailInput, request, env, now)) {
       return jsonError("Too many account requests. Wait 15 minutes and try again.", 429);
@@ -419,10 +439,15 @@ async function handleApi(request, url, env) {
     const salt = randomSalt();
     const passwordHash = await hashPassword(password, salt, PASSWORD_ITERATIONS);
     const userId = crypto.randomUUID();
+    const profileValues = profileFields.map(function (field) { return profile[field[0]].trim(); });
     const inserted = await env.DB.prepare(
-      "INSERT INTO users (id, email, username, password_salt, password_hash, password_iterations, created_at) " +
-      "VALUES (?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING"
-    ).bind(userId, emailInput, emailInput, salt, passwordHash, PASSWORD_ITERATIONS, now).run();
+      "INSERT INTO users (id, email, username, password_salt, password_hash, password_iterations, " +
+      "full_name, phone, street_address, city, region, postal_code, country, created_at) " +
+      "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) ON CONFLICT(email) DO NOTHING"
+    ).bind(
+      userId, emailInput, emailInput, salt, passwordHash, PASSWORD_ITERATIONS,
+      ...profileValues, now
+    ).run();
     if (!inserted.meta || inserted.meta.changes !== 1) {
       return jsonError("An account already exists for that email address.", 409);
     }

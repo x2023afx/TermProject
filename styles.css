@@ -133,6 +133,9 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
 .profile-section .account-actions { margin-top: 14px; }
 .personal-info-form { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; max-width: 760px; margin-top: 18px; }
 .personal-info-form label { min-width: 0; }
+.signup-details { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 13px; min-width: 0; margin: 4px 0; padding: 16px; border: 1px solid var(--border); border-radius: 10px; }
+.signup-details legend { padding: 0 7px; color: var(--green); font-size: .75rem; font-weight: 750; }
+.signup-details label { min-width: 0; }
 .personal-info-wide { grid-column: 1 / -1; }
 .personal-info-form .account-actions { align-items: center; }
 .personal-info-form .account-status { margin: 0; }
@@ -177,7 +180,7 @@ input { width: 100%; height: 44px; padding: 0 12px; color: var(--ink); backgroun
   nav a { font-size: .8rem; }
   .data-badge { margin-left: auto; }
   main { padding: 27px 15px 36px; }
-  .stock-search, .account-form, .personal-info-form { grid-template-columns: 1fr; }
+  .stock-search, .account-form, .personal-info-form, .signup-details { grid-template-columns: 1fr; }
   .stock-search .primary-button { width: 100%; }
   .personal-info-wide { grid-column: auto; }
   .overview-grid { grid-template-columns: 1fr; }
