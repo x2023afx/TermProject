@@ -29,6 +29,8 @@ nav a:hover { color: var(--green); }
 .data-badge.is-disconnected { color: #8a653d; background: #faf2e7; }
 .header-button, .primary-button { color: #fff; background: var(--green); border: 1px solid var(--green); border-radius: 9px; font: inherit; font-size: .85rem; font-weight: 650; text-decoration: none; cursor: pointer; }
 .header-button { padding: 9px 15px; white-space: nowrap; }
+.header-button.is-signed-in { display: grid; width: 42px; height: 42px; padding: 3px; place-items: center; border-radius: 50%; }
+.profile-avatar { display: grid; width: 34px; height: 34px; place-items: center; color: var(--green-dark); background: var(--green-pale); border: 1px solid #cfe1d5; border-radius: 50%; font-size: .95rem; font-weight: 750; }
 .primary-button { min-height: 44px; padding: 0 17px; }
 .header-button:hover, .primary-button:hover { background: var(--green-dark); border-color: var(--green-dark); }
 .primary-button:disabled { opacity: .6; cursor: wait; }

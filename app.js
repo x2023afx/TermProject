@@ -46,6 +46,15 @@
     document.getElementById("account-signed-out").hidden = signedIn;
     document.getElementById("account-signed-in").hidden = !signedIn;
     document.getElementById("account-email-display").textContent = email || "";
+    const headerAccount = document.getElementById("header-account");
+    const avatar = document.getElementById("header-account-avatar");
+    const label = document.getElementById("header-account-label");
+    avatar.textContent = signedIn && email ? email.trim().charAt(0).toUpperCase() : "";
+    avatar.hidden = !signedIn;
+    label.hidden = signedIn;
+    headerAccount.classList.toggle("is-signed-in", signedIn);
+    headerAccount.setAttribute("aria-label", signedIn ? "Account profile for " + email : "Sign in");
+    headerAccount.title = signedIn ? email : "Sign in";
   }
 
   function setMarketStatus(message, connected) {
