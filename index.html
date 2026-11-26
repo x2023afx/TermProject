@@ -64,9 +64,12 @@
       <form id="stock-form" class="stock-search panel">
         <label for="stock-symbol">
           <span class="field-label">Stock or ETF symbol</span>
-          <input id="stock-symbol" name="symbol" type="text" list="stock-symbols" value="AAPL"
-            maxlength="80" autocomplete="off" required>
-          <datalist id="stock-symbols"></datalist>
+          <div class="stock-autocomplete">
+            <input id="stock-symbol" name="symbol" type="text" value="AAPL"
+              maxlength="80" autocomplete="off" aria-autocomplete="list" aria-expanded="false"
+              aria-controls="stock-symbol-suggestions" required>
+            <div id="stock-symbol-suggestions" class="stock-suggestions" role="listbox" hidden></div>
+          </div>
         </label>
         <button id="stock-submit" class="primary-button" type="submit">Analyze stock</button>
         <p id="stock-search-status" class="stock-search-status" role="status" aria-live="polite">

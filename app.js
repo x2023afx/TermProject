@@ -774,26 +774,73 @@
       });
   }
 
-  function renderStockSuggestions(results) {
-    const datalist = document.getElementById("stock-symbols");
-    const suggestions = STOCKS.concat(results);
+  function renderStockSuggestions(results, query) {
+    const list = document.getElementById("stock-symbol-suggestions");
+    const matchingPopular = STOCKS.filter(function (stock) {
+      const normalizedQuery = query.toLowerCase();
+      return stock.symbol.toLowerCase().indexOf(normalizedQuery) !== -1 ||
+        stock.name.toLowerCase().indexOf(normalizedQuery) !== -1;
+    });
+    const suggestions = results.concat(matchingPopular);
     const seen = new Set();
-    datalist.replaceChildren();
+    list.replaceChildren();
+    let activeIndex = -1;
     suggestions.forEach(function (stock) {
-      if (seen.has(stock.symbol)) {
+      if (seen.has(stock.symbol) || !stock.symbol) {
         return;
       }
       seen.add(stock.symbol);
-      const option = document.createElement("option");
-      option.value = stock.symbol;
-      option.label = stock.name || stock.symbol;
-      datalist.appendChild(option);
+      const option = document.createElement("button");
+      option.type = "button";
+      option.className = "stock-suggestion";
+      option.setAttribute("role", "option");
+      option.setAttribute("aria-selected", "false");
+      const symbol = document.createElement("strong");
+      symbol.textContent = stock.symbol;
+      const name = document.createElement("span");
+      name.textContent = stock.name || stock.symbol;
+      option.append(symbol, name);
+      option.addEventListener("pointerdown", function (event) {
+        event.preventDefault();
+      });
+      option.addEventListener("click", function () {
+        closeStockSuggestions();
+        loadStock(stock.symbol);
+      });
+      list.appendChild(option);
     });
+    list.hidden = !list.childElementCount;
+    symbolInput.setAttribute("aria-expanded", String(!list.hidden));
+
+    function setActiveOption(nextIndex) {
+      const options = list.querySelectorAll('[role="option"]');
+      if (!options.length) {
+        return;
+      }
+      activeIndex = (nextIndex + options.length) % options.length;
+      options.forEach(function (option, index) {
+        option.setAttribute("aria-selected", String(index === activeIndex));
+      });
+      symbolInput.setAttribute("aria-activedescendant", options[activeIndex].id);
+    }
+
+    list.querySelectorAll('[role="option"]').forEach(function (option, index) {
+      option.id = "stock-suggestion-" + index;
+    });
+    return setActiveOption;
+  }
+
+  function closeStockSuggestions() {
+    const list = document.getElementById("stock-symbol-suggestions");
+    list.hidden = true;
+    list.replaceChildren();
+    symbolInput.setAttribute("aria-expanded", "false");
+    symbolInput.removeAttribute("aria-activedescendant");
   }
 
   function initializeStockSearch() {
     const searchStatus = document.getElementById("stock-search-status");
-    renderStockSuggestions([]);
+    let setActiveOption = function () {};
     symbolInput.addEventListener("focus", function () {
       symbolInput.value = "";
       searchStatus.textContent = "Type a ticker or company name to search available stocks and ETFs.";
@@ -803,6 +850,7 @@
         symbolInput.value = lastStockSymbol;
         searchStatus.textContent = "Search any stock or ETF by symbol or company name.";
       }
+      window.setTimeout(closeStockSuggestions, 120);
     });
     symbolInput.addEventListener("input", function () {
       const query = symbolInput.value.trim();
@@ -813,7 +861,7 @@
         stockSearchController = null;
       }
       if (query.length < 2) {
-        renderStockSuggestions([]);
+        closeStockSuggestions();
         searchStatus.textContent = "Type at least 2 characters to search.";
         return;
       }
@@ -829,17 +877,39 @@
             return;
           }
           const results = Array.isArray(data.results) ? data.results : [];
-          renderStockSuggestions(results);
-          searchStatus.textContent = results.length
-            ? results.length + " matching stocks or ETFs. Select a ticker or enter one directly."
+          setActiveOption = renderStockSuggestions(results, query);
+          const suggestionCount = document.getElementById("stock-symbol-suggestions").childElementCount;
+          searchStatus.textContent = suggestionCount
+            ? suggestionCount + " matching stocks or ETFs. Select a ticker or enter one directly."
             : "No matches found. You can still enter a ticker symbol directly.";
         }).catch(function (error) {
           if (error.name !== "AbortError" && requestId === stockSearchRequestId) {
+            setActiveOption = renderStockSuggestions([], query);
             searchStatus.textContent =
               "Live suggestions are unavailable. You can still enter a ticker symbol directly.";
           }
         });
       }, 250);
+    });
+    symbolInput.addEventListener("keydown", function (event) {
+      const options = document.querySelectorAll("#stock-symbol-suggestions [role='option']");
+      if (event.key === "ArrowDown" && !document.getElementById("stock-symbol-suggestions").hidden) {
+        event.preventDefault();
+        const activeOption = symbolInput.getAttribute("aria-activedescendant");
+        const activeIndex = Array.prototype.indexOf.call(options, document.getElementById(activeOption));
+        setActiveOption(activeIndex + 1);
+      } else if (event.key === "ArrowUp" && !document.getElementById("stock-symbol-suggestions").hidden) {
+        event.preventDefault();
+        const activeOption = symbolInput.getAttribute("aria-activedescendant");
+        const activeIndex = Array.prototype.indexOf.call(options, document.getElementById(activeOption));
+        setActiveOption(activeIndex < 0 ? options.length - 1 : activeIndex - 1);
+      } else if (event.key === "Escape") {
+        closeStockSuggestions();
+      } else if (event.key === "Enter" &&
+        symbolInput.getAttribute("aria-activedescendant")) {
+        event.preventDefault();
+        document.getElementById(symbolInput.getAttribute("aria-activedescendant")).click();
+      }
     });
   }
 
