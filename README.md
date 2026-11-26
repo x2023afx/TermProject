@@ -2,6 +2,8 @@
 
 Northstar is a stock research prototype. It displays real daily market history, compares a selected stock with a small configured peer group, and calculates a two-session statistical projection. It is not a brokerage, a real-time quote service, or a source of personalized financial advice.
 
+The Market movers tab ranks a selection of widely followed stocks and ETFs by historical price performance over a selectable timeframe (one week through five years). It also charts relative returns for the five leading performers; it does not rank trading volume or predict future returns.
+
 ## Market data and projection
 
 - The Cloudflare Worker retrieves up to five years of daily historical prices from Yahoo Finance's chart endpoint. No API key is required. This is an unofficial endpoint and may be rate-limited or changed by Yahoo; data can be delayed.

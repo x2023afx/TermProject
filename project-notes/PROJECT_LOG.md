@@ -24,6 +24,17 @@ Copy this block for each session.
 
 ---
 
+### Session — 11/12/26-11/13 — driver: Nicholas Bergen
+
+- **Goal for this session:** Create app and get it working online 
+- **Key prompts we gave Copilot** (paste the important ones):
+  1. how do i connect python to an external api and cloudflare
+- **What worked:** changing the apis and getting rid of the email confirmation
+- **What broke, and how we fixed it:** email and other server provider, changed to cloudflare and used yahoo finance
+- **Committed?** yes / no — commit message: yes 
+
+---
+
 ## Things that broke (running list)
 
 | Date     | What went wrong  | What we tried              | What finally fixed it                       |

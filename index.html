@@ -13,6 +13,7 @@
     <a class="brand" href="#stocks"><span class="brand-mark" aria-hidden="true">N</span>Northstar</a>
     <nav aria-label="Main navigation">
       <a href="#stocks">Stock research</a>
+      <a href="#market-movers">Market movers</a>
       <a href="#account">Account</a>
       <a href="#about">Methodology</a>
     </nav>
@@ -128,6 +129,58 @@
       <aside class="notice">
         <strong>Research tool, not financial advice</strong>
         <p>Short-term price movements are highly uncertain. Projections are generated from historical daily returns and comparable securities; they are not guaranteed outcomes, personalized recommendations, or a substitute for professional advice. Market data may be delayed or incomplete. You can lose money investing.</p>
+      </aside>
+    </section>
+
+    <section id="market-movers" data-view hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Market movers</p>
+          <h1>Popular stocks, ranked by performance.</h1>
+          <p class="lead">Compare recent price returns across a selection of widely followed stocks and ETFs.</p>
+        </div>
+      </div>
+      <div class="movers-controls panel">
+        <label for="movers-period">
+          <span class="field-label">Performance timeframe</span>
+          <select id="movers-period">
+            <option value="1w">1 week</option>
+            <option value="1m">1 month</option>
+            <option value="3m" selected>3 months</option>
+            <option value="6m">6 months</option>
+            <option value="1y">1 year</option>
+            <option value="5y">5 years</option>
+          </select>
+        </label>
+        <p id="movers-status" role="status" aria-live="polite">Choose a timeframe to load market data.</p>
+      </div>
+      <section class="panel movers-chart-panel" aria-label="Performance chart">
+        <div class="panel-title">
+          <div>
+            <h2>Relative price performance</h2>
+            <p id="movers-chart-label">Top performers · percentage change from the start of the selected timeframe</p>
+          </div>
+        </div>
+        <div id="movers-chart-empty" class="chart-empty">Market history will appear when data loads.</div>
+        <svg id="movers-chart" class="movers-chart" role="img"
+          aria-label="Line chart comparing price performance of the top five stocks" hidden></svg>
+        <div id="movers-legend" class="movers-legend" hidden></div>
+        <div id="movers-chart-range" class="chart-range" hidden></div>
+      </section>
+      <section class="panel movers-list-panel" aria-label="Popular stocks ranked by performance">
+        <div class="panel-title">
+          <div>
+            <h2>Performance leaderboard</h2>
+            <p>Ranked by price change during the selected timeframe</p>
+          </div>
+        </div>
+        <div id="movers-list" class="movers-list">
+          <p class="chart-empty">Market history will appear when data loads.</p>
+        </div>
+      </section>
+      <aside class="notice">
+        <strong>How to read this page</strong>
+        <p>This selection of widely followed stocks and ETFs is ranked by historical price performance, not trading volume or popularity. Past performance does not predict future results and is not a recommendation to buy or sell.</p>
       </aside>
     </section>
 

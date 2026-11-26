@@ -23,6 +23,9 @@
   let accountSignedIn = false;
   let currentStockData = null;
   let stockRenderId = 0;
+  let marketMoversRequestId = 0;
+  let marketMoversLoadedPeriod = "";
+  let marketMoversLoadingPeriod = "";
   const accountToken = function () {
     try {
       return localStorage.getItem(accountTokenKey) || "";
@@ -361,6 +364,154 @@
     });
   }
 
+  function renderMarketMovers(data) {
+    const stocks = data.stocks;
+    const topStocks = stocks.slice(0, 5);
+    const svg = document.getElementById("movers-chart");
+    const empty = document.getElementById("movers-chart-empty");
+    const legend = document.getElementById("movers-legend");
+    const chartRange = document.getElementById("movers-chart-range");
+    const list = document.getElementById("movers-list");
+    const width = 720;
+    const height = 260;
+    const padding = { top: 16, right: 12, bottom: 20, left: 12 };
+    const performanceSeries = topStocks.map(function (stock) {
+      return stock.history.map(function (item) {
+        return item.close / stock.history[0].close - 1;
+      });
+    });
+    const allReturns = performanceSeries.reduce(function (all, series) {
+      return all.concat(series);
+    }, []);
+
+    list.replaceChildren();
+    stocks.forEach(function (stock, index) {
+      const row = document.createElement("article");
+      row.className = "mover-row";
+      const rank = document.createElement("span");
+      rank.className = "mover-rank";
+      rank.textContent = String(index + 1);
+      const identity = document.createElement("div");
+      identity.className = "mover-identity";
+      const symbol = document.createElement("strong");
+      symbol.textContent = stock.symbol;
+      const name = document.createElement("span");
+      name.textContent = stock.name || stock.symbol;
+      identity.append(symbol, name);
+      const price = document.createElement("span");
+      price.className = "mover-price";
+      price.textContent = formatCurrency(stock.price, stock.currency);
+      const change = document.createElement("strong");
+      change.className = stock.periodReturn > 0 ? "positive" : stock.periodReturn < 0 ? "negative" : "";
+      change.textContent = formatPercent(stock.periodReturn);
+      const analyze = document.createElement("button");
+      analyze.type = "button";
+      analyze.className = "text-button";
+      analyze.textContent = "Analyze";
+      analyze.setAttribute("aria-label", "Analyze " + stock.symbol);
+      analyze.addEventListener("click", function () {
+        symbolInput.value = stock.symbol;
+        window.location.hash = "stocks";
+        loadStock(stock.symbol);
+      });
+      row.append(rank, identity, price, change, analyze);
+      list.appendChild(row);
+    });
+
+    if (topStocks.length < 2 || !allReturns.length) {
+      svg.hidden = true;
+      legend.hidden = true;
+      chartRange.hidden = true;
+      empty.hidden = false;
+      empty.textContent = "Not enough data to draw the performance chart.";
+      return;
+    }
+
+    const min = Math.min.apply(null, allReturns.concat([0]));
+    const max = Math.max.apply(null, allReturns.concat([0]));
+    const spread = max - min || 0.02;
+    const baselineY = padding.top + max * (height - padding.top - padding.bottom) / spread;
+    svg.replaceChildren();
+    svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+    baseline.setAttribute("x1", String(padding.left));
+    baseline.setAttribute("x2", String(width - padding.right));
+    baseline.setAttribute("y1", baselineY.toFixed(2));
+    baseline.setAttribute("y2", baselineY.toFixed(2));
+    baseline.setAttribute("class", "movers-zero-line");
+    svg.appendChild(baseline);
+    performanceSeries.forEach(function (series, seriesIndex) {
+      const path = series.map(function (value, pointIndex) {
+        const x = padding.left + pointIndex * (width - padding.left - padding.right) /
+          Math.max(series.length - 1, 1);
+        const y = padding.top + (max - value) * (height - padding.top - padding.bottom) / spread;
+        return (pointIndex === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2);
+      }).join(" ");
+      const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+      line.setAttribute("d", path);
+      line.setAttribute("class", "movers-line movers-line-" + seriesIndex);
+      svg.appendChild(line);
+    });
+    svg.hidden = false;
+    empty.hidden = true;
+    legend.replaceChildren();
+    topStocks.forEach(function (stock, index) {
+      const label = document.createElement("span");
+      label.className = "movers-legend-item";
+      const marker = document.createElement("span");
+      marker.className = "movers-legend-marker movers-line-" + index;
+      marker.setAttribute("aria-hidden", "true");
+      label.append(marker, document.createTextNode(stock.symbol));
+      legend.appendChild(label);
+    });
+    legend.hidden = false;
+    chartRange.hidden = false;
+    chartRange.textContent = topStocks[0].history[0].date + "  ·  0% baseline  ·  " +
+      topStocks[0].history[topStocks[0].history.length - 1].date;
+  }
+
+  function loadMarketMovers() {
+    const period = document.getElementById("movers-period").value;
+    if (period === marketMoversLoadedPeriod || period === marketMoversLoadingPeriod) {
+      return;
+    }
+    const requestId = ++marketMoversRequestId;
+    marketMoversLoadingPeriod = period;
+    document.getElementById("movers-status").textContent = "Loading popular stock performance...";
+    document.getElementById("movers-chart").hidden = true;
+    document.getElementById("movers-legend").hidden = true;
+    document.getElementById("movers-chart-range").hidden = true;
+    document.getElementById("movers-chart-empty").hidden = false;
+    document.getElementById("movers-chart-empty").textContent = "Loading historical prices...";
+    showEmptyMessage(document.getElementById("movers-list"), "Loading popular stock history...");
+    apiRequest("/api/market-movers?period=" + encodeURIComponent(period), "")
+      .then(function (data) {
+        if (requestId !== marketMoversRequestId) {
+          return;
+        }
+        renderMarketMovers(data);
+        marketMoversLoadedPeriod = period;
+        const periodLabel = document.getElementById("movers-period").selectedOptions[0].textContent;
+        document.getElementById("movers-status").textContent =
+          "Updated " + new Date(data.updatedAt).toLocaleString() +
+          (data.unavailableCount ? " · " + data.unavailableCount + " symbols unavailable" : "") +
+          " · " + periodLabel;
+      })
+      .catch(function (error) {
+        if (requestId === marketMoversRequestId) {
+          document.getElementById("movers-status").textContent = error.message;
+          document.getElementById("movers-chart-empty").textContent =
+            "Popular stock performance is unavailable. Try changing the timeframe.";
+          showEmptyMessage(document.getElementById("movers-list"), "Popular stock history is unavailable.");
+        }
+      })
+      .then(function () {
+        if (requestId === marketMoversRequestId) {
+          marketMoversLoadingPeriod = "";
+        }
+      });
+  }
+
   function showEmptyMessage(container, message) {
     container.replaceChildren();
     const empty = document.createElement("p");
@@ -487,6 +638,9 @@
         link.removeAttribute("aria-current");
       }
     });
+    if (currentView === "market-movers") {
+      loadMarketMovers();
+    }
   }
 
   function setAccountMessage(message) {
@@ -894,6 +1048,10 @@
     }
   });
   window.addEventListener("hashchange", showView);
+  document.getElementById("movers-period").addEventListener("change", function () {
+    marketMoversLoadedPeriod = "";
+    loadMarketMovers();
+  });
   showView();
   initializeAccounts();
   loadStock(symbolInput.value);

@@ -7,6 +7,11 @@ const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
 const SYMBOL_PATTERN = /^[A-Z0-9.^=-]{1,12}$/;
 const EMAIL_PATTERN = /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 const STOCK_CACHE_TTL_SECONDS = 3600;
+const MARKET_MOVER_SYMBOLS = [
+  "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
+  "JPM", "V", "WMT", "XOM", "SPY", "QQQ"
+];
+const MARKET_MOVER_RANGE_COUNTS = { "1w": 5, "1m": 22, "3m": 65, "6m": 130, "1y": 260, "5y": 1300 };
 const COMPARABLES = {
   AAPL: ["MSFT", "GOOGL", "QQQ"],
   MSFT: ["AAPL", "GOOGL", "QQQ"],
@@ -409,6 +414,46 @@ async function handleApi(request, url, env) {
     }
     const target = results[0].value;
     return { body: buildStockResponse(symbol, target, peerData), status: 200 };
+  }
+
+  if (url.pathname === "/api/market-movers" && request.method === "GET") {
+    const period = url.searchParams.get("period") || "3m";
+    if (!Object.prototype.hasOwnProperty.call(MARKET_MOVER_RANGE_COUNTS, period)) {
+      return jsonError("Choose a supported market timeframe.", 400);
+    }
+    const rangeCount = MARKET_MOVER_RANGE_COUNTS[period];
+    const results = await Promise.allSettled(
+      MARKET_MOVER_SYMBOLS.map(function (symbol) { return fetchStockHistory(symbol); })
+    );
+    const stocks = results.map(function (result) {
+      return result.status === "fulfilled" ? result.value : null;
+    }).filter(Boolean).map(function (stock) {
+      const history = stock.history.slice(-(rangeCount + 1));
+      const start = history[0];
+      const end = history[history.length - 1];
+      return {
+        symbol: stock.symbol,
+        name: stock.name,
+        currency: stock.currency,
+        price: end.close,
+        periodReturn: end.close / start.close - 1,
+        history: history
+      };
+    }).sort(function (left, right) {
+      return right.periodReturn - left.periodReturn;
+    });
+    if (!stocks.length) {
+      return jsonError("Popular stock history is unavailable. Try again later.", 502);
+    }
+    return {
+      body: {
+        period: period,
+        updatedAt: new Date().toISOString(),
+        stocks: stocks,
+        unavailableCount: results.length - stocks.length
+      },
+      status: 200
+    };
   }
 
   if (url.pathname === "/api/auth/register" && request.method === "POST") {
