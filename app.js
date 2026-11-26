@@ -1877,7 +1877,11 @@
       localStorage.setItem(accountTokenKey, session.token);
       passwordInput.value = "";
       setAccountMessage("Signed in.");
-      return loadAccount();
+      return loadAccount().then(function () {
+        if (action === "login" && accountSignedIn) {
+          window.location.hash = "stocks";
+        }
+      });
     }).catch(function (error) {
       setAccountMessage(error.message);
     }).then(function () {
