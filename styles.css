@@ -95,7 +95,7 @@ nav a[aria-current="page"] { color: var(--green-dark); background: var(--green-p
 .header-button:hover, .primary-button:hover { background: var(--green-dark); border-color: var(--green-dark); }
 .primary-button:disabled { opacity: .6; cursor: wait; }
 .site-layout { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(0, 1120px) minmax(120px, 1fr); gap: 20px; width: min(1580px, 100%); margin: 0 auto; padding: 0 18px; }
-main { width: min(1120px, calc(100vw - 320px)); min-height: calc(100vh - 138px); margin: 0; padding: 46px 28px 54px; justify-self: center; }
+main { width: 100%; max-width: 1120px; min-width: 0; min-height: calc(100vh - 138px); margin: 0; padding: 46px 28px 54px; justify-self: center; }
 .ad-rail { display: grid; align-content: start; gap: 14px; padding-top: 48px; }
 .sample-ad { display: grid; justify-items: start; gap: 11px; padding: 16px; background: linear-gradient(155deg, var(--surface), var(--green-pale)); border: 1px solid var(--border); border-radius: 15px; box-shadow: 0 8px 28px rgb(34 37 75 / 5%); }
 .sample-ad-label { color: var(--muted); font-size: .58rem; font-weight: 750; letter-spacing: .08em; text-transform: uppercase; }
