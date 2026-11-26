@@ -377,7 +377,7 @@
         <div>
           <p class="eyebrow">Methodology and limitations</p>
           <h1>What the projection does and does not mean.</h1>
-          <p class="lead">A simple, inspectable baseline that compares recent returns. It cannot reliably predict future prices.</p>
+          <p class="lead">A statistical estimate based on recent market behavior and related securities. It cannot reliably predict future prices.</p>
         </div>
       </div>
       <div class="method-cards">
@@ -389,12 +389,12 @@
         <article class="panel method-card">
           <span class="step-number">02</span>
           <h2>Projection</h2>
-          <p>The estimate blends the selected stock's mean daily return over the latest 60 aligned sessions with the mean return of its configured comparison securities. It compounds that blended mean over the next two sessions.</p>
+          <p>The model looks at the selected stock's recent price behavior alongside a small group of related securities. It uses those patterns to estimate a possible direction and price level for the next two trading sessions. The detailed model formula is proprietary, and historical patterns may not continue.</p>
         </article>
         <article class="panel method-card">
           <span class="step-number">03</span>
           <h2>Confidence and range</h2>
-          <p>The confidence percentage is the model's directional accuracy over up to 60 rolling, out-of-sample two-session historical tests, not the probability that a forecast will be correct. The 80% range assumes historical return dispersion continues; it is not guaranteed to contain the future price.</p>
+          <p>Confidence summarizes how often the model correctly indicated the direction of past moves in historical tests. It is not the probability that this projection will be right. The estimated range communicates uncertainty based on past price variation; actual prices can fall outside it.</p>
         </article>
       </div>
       <aside class="notice">
