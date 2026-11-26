@@ -434,13 +434,20 @@
       trendChart.setAttribute("role", "img");
       trendChart.setAttribute("aria-label", stock.symbol + " historical price change over " +
         document.getElementById("movers-period").selectedOptions[0].textContent);
+      trendChart.setAttribute("tabindex", "0");
+      trendChart.setAttribute("aria-describedby", "mover-tooltip-" + stock.symbol.toLowerCase());
+      const trendTooltip = document.createElement("p");
+      trendTooltip.className = "mover-tooltip";
+      trendTooltip.id = "mover-tooltip-" + stock.symbol.toLowerCase();
+      trendTooltip.setAttribute("role", "status");
+      trendTooltip.hidden = true;
       const chartRange = document.createElement("div");
       chartRange.className = "mover-trend-range";
       chartRange.textContent = stock.history[0].date + "  ·  " +
         formatCurrency(stock.history[0].close, stock.currency) + " to " +
         formatCurrency(stock.price, stock.currency) + "  ·  " +
         stock.history[stock.history.length - 1].date;
-      details.append(trendHeading, trendChart, chartRange);
+      details.append(trendHeading, trendChart, trendTooltip, chartRange);
       toggle.addEventListener("click", function () {
         const opening = details.hidden;
         if (expandedEntry && expandedEntry !== entry) {
@@ -475,7 +482,68 @@
             const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
             line.setAttribute("d", path);
             line.setAttribute("class", "mover-trend-line");
-            trendChart.append(baseline, line);
+            const crosshair = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            crosshair.setAttribute("y1", String(top));
+            crosshair.setAttribute("y2", String(bottom));
+            crosshair.setAttribute("class", "mover-trend-crosshair");
+            crosshair.setAttribute("visibility", "hidden");
+            const marker = document.createElementNS("http://www.w3.org/2000/svg", "circle");
+            marker.setAttribute("r", "5");
+            marker.setAttribute("class", "mover-trend-marker");
+            marker.setAttribute("visibility", "hidden");
+            trendChart.append(baseline, line, crosshair, marker);
+
+            function showPoint(pointIndex) {
+              const boundedIndex = Math.max(0, Math.min(pointIndex, stock.history.length - 1));
+              const point = stock.history[boundedIndex];
+              const relativeReturn = point.close / stock.history[0].close - 1;
+              const x = boundedIndex * 720 / Math.max(stock.history.length - 1, 1);
+              const y = top + (maxReturn - returns[boundedIndex]) * (bottom - top) / spreadReturn;
+              crosshair.setAttribute("x1", x.toFixed(2));
+              crosshair.setAttribute("x2", x.toFixed(2));
+              crosshair.removeAttribute("visibility");
+              marker.setAttribute("cx", x.toFixed(2));
+              marker.setAttribute("cy", y.toFixed(2));
+              marker.removeAttribute("visibility");
+              trendTooltip.textContent = point.date + " · " +
+                formatCurrency(point.close, stock.currency) + " · " +
+                formatPercent(relativeReturn) + " vs. start · " +
+                Math.round(boundedIndex / Math.max(stock.history.length - 1, 1) * 100) +
+                "% through timeframe";
+              trendTooltip.hidden = false;
+              trendChart.dataset.activeIndex = String(boundedIndex);
+            }
+
+            trendChart.addEventListener("pointermove", function (event) {
+              const bounds = trendChart.getBoundingClientRect();
+              if (!bounds.width) {
+                return;
+              }
+              const progress = Math.max(0, Math.min(1, (event.clientX - bounds.left) / bounds.width));
+              showPoint(Math.round(progress * (stock.history.length - 1)));
+            });
+            trendChart.addEventListener("pointerleave", function () {
+              crosshair.setAttribute("visibility", "hidden");
+              marker.setAttribute("visibility", "hidden");
+              trendTooltip.hidden = true;
+            });
+            trendChart.addEventListener("keydown", function (event) {
+              const currentIndex = Number(trendChart.dataset.activeIndex || 0);
+              let nextIndex = currentIndex;
+              if (event.key === "ArrowRight") {
+                nextIndex += 1;
+              } else if (event.key === "ArrowLeft") {
+                nextIndex -= 1;
+              } else if (event.key === "Home") {
+                nextIndex = 0;
+              } else if (event.key === "End") {
+                nextIndex = stock.history.length - 1;
+              } else {
+                return;
+              }
+              event.preventDefault();
+              showPoint(nextIndex);
+            });
           }
         } else {
           expandedEntry = null;

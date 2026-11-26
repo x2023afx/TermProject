@@ -152,8 +152,12 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .mover-trend-heading { display: flex; justify-content: space-between; gap: 12px; font-size: .77rem; }
 .mover-trend-heading span { font-weight: 700; }
 .mover-trend-chart { display: block; width: 100%; height: 180px; margin-top: 8px; overflow: visible; }
+.mover-trend-chart:focus-visible { outline: 3px solid #73aa8d; outline-offset: 3px; border-radius: 4px; }
 .mover-trend-line { fill: none; stroke: var(--green); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
 .mover-trend-zero { stroke: #aeb8b1; stroke-width: 1; stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
+.mover-trend-crosshair { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 4; vector-effect: non-scaling-stroke; }
+.mover-trend-marker { fill: var(--surface); stroke: var(--green); stroke-width: 3; vector-effect: non-scaling-stroke; }
+.mover-tooltip { margin: 0 0 7px; color: var(--ink); font-size: .73rem; font-variant-numeric: tabular-nums; }
 .mover-trend-range { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .68rem; }
 .comparables-list { display: grid; }
 .comparable-row { display: grid; grid-template-columns: .45fr 1fr 1fr; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #edf0ed; font-size: .77rem; }
