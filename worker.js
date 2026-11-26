@@ -175,7 +175,7 @@ async function fetchStockHistory(symbol) {
   }
 
   const url = new URL(encodeURIComponent(symbol), YAHOO_CHART_URL);
-  url.searchParams.set("range", "6mo");
+  url.searchParams.set("range", "5y");
   url.searchParams.set("interval", "1d");
   const response = await fetch(url.toString(), {
     headers: {
@@ -348,7 +348,7 @@ function buildStockResponse(symbol, target, peerData) {
     changePercent: currentPrice / previousClose - 1,
     priceDate: target.history[target.history.length - 1].date,
     updatedAt: new Date().toISOString(),
-    history: target.history.slice(-130),
+    history: target.history.slice(-1300),
     forecast: forecast,
     projectionPercent: Math.pow(1 + dailyMean, 2) - 1,
     comparables: comparableRows,

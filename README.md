@@ -4,7 +4,7 @@ Northstar is a stock research prototype. It displays real daily market history, 
 
 ## Market data and projection
 
-- The Cloudflare Worker retrieves six months of daily historical prices from Yahoo Finance's chart endpoint. No API key is required. This is an unofficial endpoint and may be rate-limited or changed by Yahoo; data can be delayed.
+- The Cloudflare Worker retrieves up to five years of daily historical prices from Yahoo Finance's chart endpoint. No API key is required. This is an unofficial endpoint and may be rate-limited or changed by Yahoo; data can be delayed.
 - Each ticker's response is cached at the Worker edge for one hour to reduce repeated provider requests.
 - Known tickers use comparison securities configured in `worker.js`. Other valid symbols use SPY and QQQ as broad-market comparators.
 - The projection blends the selected stock's mean daily return over the latest 60 aligned observations (60%) with the mean of available comparables' returns (40%), then compounds the blended mean for two sessions.

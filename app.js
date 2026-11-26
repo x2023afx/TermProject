@@ -70,7 +70,7 @@
         currency: saved.currency === "MARKET" || Object.prototype.hasOwnProperty.call(currencies, saved.currency)
           ? saved.currency
           : defaults.currency,
-        dateRange: ["1m", "3m", "6m"].indexOf(saved.dateRange) !== -1
+        dateRange: ["1w", "1m", "3m", "6m", "1y", "5y"].indexOf(saved.dateRange) !== -1
           ? saved.dateRange
           : defaults.dateRange
       };
@@ -277,11 +277,11 @@
     const empty = document.getElementById("chart-empty");
     const range = document.getElementById("chart-range");
     const settings = readSettings();
-    const rangeCounts = { "1m": 22, "3m": 65, "6m": 130 };
+    const rangeCounts = { "1w": 5, "1m": 22, "3m": 65, "6m": 130, "1y": 260, "5y": 1300 };
     const recent = history.slice(-rangeCounts[settings.dateRange]);
+    const rangeNames = { "1w": "week", "1m": "month", "3m": "months", "6m": "months", "1y": "year", "5y": "years" };
     document.getElementById("chart-range-label").textContent =
-      "Daily closing prices · past " + settings.dateRange.slice(0, 1) + " " +
-      (settings.dateRange === "1m" ? "month" : "months");
+      "Daily closing prices · past " + settings.dateRange.slice(0, -1) + " " + rangeNames[settings.dateRange];
     if (recent.length < 2) {
       svg.hidden = true;
       range.hidden = true;
