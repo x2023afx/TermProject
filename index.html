@@ -380,6 +380,52 @@
           <p class="lead">A statistical estimate based on recent market behavior and related securities. It cannot reliably predict future prices.</p>
         </div>
       </div>
+      <section class="method-visual panel" aria-labelledby="method-visual-title">
+        <div class="panel-title">
+          <div>
+            <h2 id="method-visual-title">From market history to an uncertain estimate</h2>
+            <p>A visual guide to the signals the model considers</p>
+          </div>
+          <span class="illustrative-tag">Illustrative</span>
+        </div>
+        <div class="method-visual-grid">
+          <article class="method-visual-step">
+            <span class="step-number">01 · OBSERVE</span>
+            <h3>Recent price behavior</h3>
+            <svg class="method-mini-chart" viewBox="0 0 280 112" role="img"
+              aria-label="Illustrative line showing a stock's historical price moving up and down">
+              <path class="method-gridline" d="M8 26H272M8 56H272M8 86H272"></path>
+              <path class="method-history-line" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40 217 23 241 33 272 14"></path>
+            </svg>
+            <p>Past daily prices provide context for recent movement.</p>
+          </article>
+          <article class="method-visual-step">
+            <span class="step-number">02 · COMPARE</span>
+            <h3>Related securities</h3>
+            <svg class="method-mini-chart" viewBox="0 0 280 112" role="img"
+              aria-label="Illustrative chart comparing the movement of a stock and related securities">
+              <path class="method-gridline" d="M8 26H272M8 56H272M8 86H272"></path>
+              <path class="method-history-line" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40 217 23 241 33 272 14"></path>
+              <path class="method-compare-line" d="M8 88 32 79 55 82 78 70 101 65 124 69 147 54 171 59 194 44 217 48 241 36 272 39"></path>
+              <path class="method-compare-line method-compare-line-alt" d="M8 57 32 62 55 48 78 54 101 41 124 48 147 36 171 43 194 31 217 36 241 20 272 26"></path>
+            </svg>
+            <p>Related market behavior adds context; it does not determine what happens next.</p>
+          </article>
+          <article class="method-visual-step">
+            <span class="step-number">03 · ESTIMATE</span>
+            <h3>Possible near-term path</h3>
+            <svg class="method-mini-chart" viewBox="0 0 280 112" role="img"
+              aria-label="Illustrative forecast with a dashed estimate and a widening uncertainty range">
+              <path class="method-gridline" d="M8 26H272M8 56H272M8 86H272"></path>
+              <path class="method-range-band" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40 217 30 244 17 272 5 272 75 244 75 217 63 194 70 171 60 147 78 124 72 101 86 78 78 55 96 32 88 8 98Z"></path>
+              <path class="method-history-line" d="M8 76 32 68 55 73 78 48 101 57 124 43 147 51 171 30 194 40"></path>
+              <path class="method-projection-line" d="M194 40 217 46 244 42 272 38"></path>
+            </svg>
+            <p>The estimate looks ahead two sessions; the shaded area highlights uncertainty.</p>
+          </article>
+        </div>
+        <p class="method-visual-note">Conceptual illustration only—not live prices, a specific stock forecast, or a recommendation.</p>
+      </section>
       <div class="method-cards">
         <article class="panel method-card">
           <span class="step-number">01</span>
