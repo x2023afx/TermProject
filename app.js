@@ -866,6 +866,7 @@
         return;
       }
 
+      setActiveOption = renderStockSuggestions([], query);
       const requestId = stockSearchRequestId;
       searchStatus.textContent = "Searching stock and ETF symbols...";
       stockSearchTimer = window.setTimeout(function () {
