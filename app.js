@@ -418,6 +418,23 @@
     return (value > 0 ? "+" : "") + (value * 100).toFixed(2) + "%";
   }
 
+  function appendChartGrid(svg, width, height, padding) {
+    const color = getComputedStyle(document.body).getPropertyValue("--chart-grid").trim();
+    [0.25, 0.5, 0.75].forEach(function (fraction) {
+      const gridline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+      const y = padding.top + fraction * (height - padding.top - padding.bottom);
+      gridline.setAttribute("x1", String(padding.left));
+      gridline.setAttribute("x2", String(width - padding.right));
+      gridline.setAttribute("y1", y.toFixed(2));
+      gridline.setAttribute("y2", y.toFixed(2));
+      gridline.setAttribute("class", "chart-gridline");
+      gridline.setAttribute("stroke", color);
+      gridline.setAttribute("stroke-width", "1");
+      gridline.setAttribute("vector-effect", "non-scaling-stroke");
+      svg.appendChild(gridline);
+    });
+  }
+
   function csvCell(value) {
     if (value === null || value === undefined) {
       return "";
@@ -548,19 +565,8 @@
     svg.setAttribute("height", String(height));
     svg.removeAttribute("hidden");
     svg.style.display = "block";
-    const gridColor = getComputedStyle(document.body).getPropertyValue("--border").trim();
-    [0.25, 0.5, 0.75].forEach(function (fraction) {
-      const gridline = document.createElementNS("http://www.w3.org/2000/svg", "line");
-      const y = padding.top + fraction * (height - padding.top - padding.bottom);
-      gridline.setAttribute("x1", String(padding.left));
-      gridline.setAttribute("x2", String(width - padding.right));
-      gridline.setAttribute("y1", y.toFixed(2));
-      gridline.setAttribute("y2", y.toFixed(2));
-      gridline.setAttribute("stroke", gridColor);
-      gridline.setAttribute("stroke-width", "1");
-      gridline.setAttribute("vector-effect", "non-scaling-stroke");
-      svg.appendChild(gridline);
-    });
+    const gridColor = getComputedStyle(document.body).getPropertyValue("--chart-grid").trim();
+    appendChartGrid(svg, width, height, padding);
     if (compared) {
       const zeroLine = document.createElementNS("http://www.w3.org/2000/svg", "line");
       const zeroY = padding.top + (max / spread) * (height - padding.top - padding.bottom);
@@ -579,7 +585,7 @@
     line.setAttribute("class", "chart-line");
     line.setAttribute("fill", "none");
     line.setAttribute("stroke", getComputedStyle(document.body).getPropertyValue("--green").trim());
-    line.setAttribute("stroke-width", "3");
+    line.setAttribute("stroke-width", "2.5");
     line.setAttribute("stroke-linecap", "round");
     line.setAttribute("stroke-linejoin", "round");
     line.setAttribute("vector-effect", "non-scaling-stroke");
@@ -589,7 +595,8 @@
       benchmarkLine.setAttribute("d", makePath(benchmarkValues));
       benchmarkLine.setAttribute("class", "benchmark-chart-line");
       benchmarkLine.setAttribute("fill", "none");
-      benchmarkLine.setAttribute("stroke", "#d7a64b");
+      benchmarkLine.setAttribute("stroke",
+        getComputedStyle(document.body).getPropertyValue("--chart-series-2").trim());
       benchmarkLine.setAttribute("stroke-width", "2.5");
       benchmarkLine.setAttribute("stroke-linecap", "round");
       benchmarkLine.setAttribute("stroke-linejoin", "round");
@@ -794,6 +801,7 @@
             baseline.setAttribute("y1", zeroY.toFixed(2));
             baseline.setAttribute("y2", zeroY.toFixed(2));
             baseline.setAttribute("class", "mover-trend-zero");
+            appendChartGrid(trendChart, 720, 180, { top: top, right: 0, bottom: 12, left: 0 });
             const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
             line.setAttribute("d", path);
             line.setAttribute("class", "mover-trend-line");
@@ -898,6 +906,7 @@
     const baselineY = padding.top + max * (height - padding.top - padding.bottom) / spread;
     svg.replaceChildren();
     svg.setAttribute("viewBox", "0 0 " + width + " " + height);
+    appendChartGrid(svg, width, height, padding);
     const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
     baseline.setAttribute("x1", String(padding.left));
     baseline.setAttribute("x2", String(width - padding.right));
@@ -1017,6 +1026,7 @@
       chart.setAttribute("role", "img");
       chart.setAttribute("aria-label", stock.symbol + " price trend over " +
         document.getElementById("candidate-period").selectedOptions[0].textContent);
+      appendChartGrid(chart, 320, 72, { top: 5, right: 0, bottom: 5, left: 0 });
       const closes = stock.history.map(function (item) { return item.close; });
       const min = Math.min.apply(null, closes);
       const max = Math.max.apply(null, closes);
@@ -1028,12 +1038,14 @@
       }).join(" ");
       const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
       line.setAttribute("d", path);
+      line.setAttribute("class", "candidate-chart-line");
       line.setAttribute("fill", "none");
       line.setAttribute("stroke", getComputedStyle(document.body)
         .getPropertyValue(stock.periodReturn >= 0 ? "--positive" : "--red").trim());
       line.setAttribute("stroke-width", "2.5");
       line.setAttribute("stroke-linecap", "round");
       line.setAttribute("stroke-linejoin", "round");
+      line.setAttribute("vector-effect", "non-scaling-stroke");
       chart.appendChild(line);
 
       const price = document.createElement("p");
@@ -1044,14 +1056,16 @@
       newsHeading.textContent = "Related headlines";
       const headlines = document.createElement("div");
       headlines.className = "candidate-headlines";
+      const tickerNewsLink = document.createElement("a");
+      tickerNewsLink.href = "https://finance.yahoo.com/quote/" +
+        encodeURIComponent(stock.symbol) + "/news/";
+      tickerNewsLink.target = "_blank";
+      tickerNewsLink.rel = "noopener noreferrer";
+      tickerNewsLink.textContent = "View " + stock.symbol + " news articles on Yahoo Finance";
       if (!stock.headlinesAvailable) {
-        const unavailable = document.createElement("p");
-        unavailable.textContent = "Headlines are unavailable right now.";
-        headlines.appendChild(unavailable);
+        headlines.appendChild(tickerNewsLink);
       } else if (!stock.headlines.length) {
-        const empty = document.createElement("p");
-        empty.textContent = "No related headlines found.";
-        headlines.appendChild(empty);
+        headlines.append(tickerNewsLink);
       } else {
         stock.headlines.forEach(function (story) {
           const link = document.createElement("a");
@@ -1061,6 +1075,7 @@
           link.textContent = story.title + " · " + story.publisher;
           headlines.appendChild(link);
         });
+        headlines.appendChild(tickerNewsLink);
       }
       const analyze = document.createElement("button");
       analyze.type = "button";
