@@ -6,6 +6,7 @@
   const maxLookups = 10;
   const stockForm = document.getElementById("stock-form");
   const symbolInput = document.getElementById("stock-symbol");
+  let accountSignedIn = false;
   const accountToken = function () {
     try {
       return localStorage.getItem(accountTokenKey) || "";
@@ -45,6 +46,7 @@
   }
 
   function displayAccount(signedIn, email) {
+    accountSignedIn = signedIn;
     document.getElementById("account-signed-out").hidden = signedIn;
     document.getElementById("account-signed-in").hidden = !signedIn;
     document.getElementById("account-email-display").textContent = email || "";
@@ -132,6 +134,7 @@
   function openAccountSection(sectionId) {
     closeProfileMenu();
     window.location.hash = "account";
+    showView();
     window.setTimeout(function () {
       const section = document.getElementById(sectionId);
       if (section) {
@@ -387,9 +390,11 @@
 
   function initializeAccounts() {
     document.getElementById("header-account").addEventListener("click", function (event) {
-      if (accountToken()) {
+      if (accountSignedIn) {
         event.preventDefault();
         toggleProfileMenu();
+      } else {
+        window.location.hash = "account";
       }
     });
     document.querySelectorAll("[data-profile-target]").forEach(function (link) {
