@@ -115,6 +115,16 @@
     document.body.dataset.theme = darkMode ? "dark" : "light";
   }
 
+  function resetSettingsToDefaults() {
+    const defaults = Object.assign({}, readSettings(), { currency: "MARKET", dateRange: "3m" });
+    saveSettings(defaults);
+    document.getElementById("currency-setting").value = defaults.currency;
+    document.getElementById("date-range-setting").value = defaults.dateRange;
+    if (currentStockData) {
+      renderStock(currentStockData);
+    }
+  }
+
   function initializeSettings() {
     const settings = readSettings();
     const currencySelect = document.getElementById("currency-setting");
@@ -432,11 +442,13 @@
     apiRequest("/api/auth/logout", token, { method: "POST", body: "{}" })
       .then(function () {
         localStorage.removeItem(accountTokenKey);
+        resetSettingsToDefaults();
         displayAccount(false, "");
         setAccountMessage("Signed out.");
       })
       .catch(function (error) {
         localStorage.removeItem(accountTokenKey);
+        resetSettingsToDefaults();
         displayAccount(false, "");
         setAccountMessage("Signed out on this device; the server session could not be revoked: " + error.message);
       });
