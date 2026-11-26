@@ -44,7 +44,7 @@
           <strong id="profile-menu-name"></strong>
           <span>Signed in</span>
         </div>
-        <button type="button" class="profile-menu-link" data-profile-target="lookup-history">Previous lookups</button>
+        <button type="button" class="profile-menu-link" data-profile-target="lookup-history">History</button>
         <a href="#account" class="profile-menu-link" data-profile-target="personal-info">Personal info</a>
         <a href="#account" class="profile-menu-link" data-profile-target="account-settings">Settings</a>
       </div>
@@ -65,10 +65,13 @@
         <label for="stock-symbol">
           <span class="field-label">Stock or ETF symbol</span>
           <input id="stock-symbol" name="symbol" type="text" list="stock-symbols" value="AAPL"
-            maxlength="12" pattern="[A-Za-z0-9.^=-]{1,12}" autocomplete="off" required>
+            maxlength="80" autocomplete="off" required>
           <datalist id="stock-symbols"></datalist>
         </label>
         <button id="stock-submit" class="primary-button" type="submit">Analyze stock</button>
+        <p id="stock-search-status" class="stock-search-status" role="status" aria-live="polite">
+          Search any stock or ETF by symbol or company name.
+        </p>
       </form>
 
       <div class="status-row">
@@ -313,7 +316,7 @@
         </div>
         <div id="lookup-history" class="profile-section">
           <p class="eyebrow">This browser only</p>
-          <h2>Previous lookups</h2>
+          <h2>History</h2>
           <div id="account-lookups" class="profile-menu-lookups"></div>
         </div>
         <div id="account-settings" class="profile-section">

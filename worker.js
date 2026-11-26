@@ -1,6 +1,7 @@
 "use strict";
 
 const YAHOO_CHART_URL = "https://query2.finance.yahoo.com/v8/finance/chart/";
+const YAHOO_SEARCH_URL = "https://query1.finance.yahoo.com/v1/finance/search";
 const TOKEN_TTL_MS = 30 * 24 * 60 * 60 * 1000;
 const PASSWORD_ITERATIONS = 100000;
 const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
@@ -254,6 +255,34 @@ async function fetchStockHistory(symbol) {
   return stock;
 }
 
+async function searchStocks(query) {
+  const url = new URL(YAHOO_SEARCH_URL);
+  url.searchParams.set("q", query);
+  url.searchParams.set("quotesCount", "10");
+  url.searchParams.set("newsCount", "0");
+  const response = await fetch(url.toString(), {
+    headers: {
+      "accept": "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; CrystalBallStocks market research)"
+    }
+  });
+  if (!response.ok) {
+    throw new Error("Yahoo Finance search returned HTTP " + response.status + ".");
+  }
+  const payload = await response.json();
+  const quotes = payload && Array.isArray(payload.quotes) ? payload.quotes : [];
+  return quotes.filter(function (quote) {
+    return quote && (quote.quoteType === "EQUITY" || quote.quoteType === "ETF") &&
+      typeof quote.symbol === "string" && SYMBOL_PATTERN.test(quote.symbol);
+  }).slice(0, 10).map(function (quote) {
+    return {
+      symbol: quote.symbol,
+      name: typeof quote.longname === "string" ? quote.longname :
+        typeof quote.shortname === "string" ? quote.shortname : quote.symbol
+    };
+  });
+}
+
 function mean(values) {
   return values.reduce(function (sum, value) { return sum + value; }, 0) / values.length;
 }
@@ -414,6 +443,14 @@ async function handleApi(request, url, env) {
     }
     const target = results[0].value;
     return { body: buildStockResponse(symbol, target, peerData), status: 200 };
+  }
+
+  if (url.pathname === "/api/stock-search" && request.method === "GET") {
+    const query = (url.searchParams.get("q") || "").trim();
+    if (query.length < 2 || query.length > 80) {
+      return jsonError("Search with 2 to 80 characters.", 400);
+    }
+    return { body: { results: await searchStocks(query) }, status: 200 };
   }
 
   if (url.pathname === "/api/market-movers" && request.method === "GET") {

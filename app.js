@@ -20,6 +20,10 @@
   const exchangeRates = new Map();
   const stockForm = document.getElementById("stock-form");
   const symbolInput = document.getElementById("stock-symbol");
+  let lastStockSymbol = symbolInput.value;
+  let stockSearchRequestId = 0;
+  let stockSearchController = null;
+  let stockSearchTimer = null;
   let accountSignedIn = false;
   let currentStockData = null;
   let stockRenderId = 0;
@@ -733,6 +737,7 @@
   function loadStock(symbol) {
     const requestId = ++stockRequestId;
     const normalized = symbol.trim().toUpperCase();
+    lastStockSymbol = normalized;
     symbolInput.value = normalized;
     document.getElementById("stock-submit").disabled = true;
     setMarketStatus("Loading " + normalized + " and comparable historical prices...", true);
@@ -767,6 +772,75 @@
           document.getElementById("stock-submit").disabled = false;
         }
       });
+  }
+
+  function renderStockSuggestions(results) {
+    const datalist = document.getElementById("stock-symbols");
+    const suggestions = STOCKS.concat(results);
+    const seen = new Set();
+    datalist.replaceChildren();
+    suggestions.forEach(function (stock) {
+      if (seen.has(stock.symbol)) {
+        return;
+      }
+      seen.add(stock.symbol);
+      const option = document.createElement("option");
+      option.value = stock.symbol;
+      option.label = stock.name || stock.symbol;
+      datalist.appendChild(option);
+    });
+  }
+
+  function initializeStockSearch() {
+    const searchStatus = document.getElementById("stock-search-status");
+    renderStockSuggestions([]);
+    symbolInput.addEventListener("focus", function () {
+      symbolInput.value = "";
+      searchStatus.textContent = "Type a ticker or company name to search available stocks and ETFs.";
+    });
+    symbolInput.addEventListener("blur", function () {
+      if (!symbolInput.value.trim()) {
+        symbolInput.value = lastStockSymbol;
+        searchStatus.textContent = "Search any stock or ETF by symbol or company name.";
+      }
+    });
+    symbolInput.addEventListener("input", function () {
+      const query = symbolInput.value.trim();
+      stockSearchRequestId += 1;
+      window.clearTimeout(stockSearchTimer);
+      if (stockSearchController) {
+        stockSearchController.abort();
+        stockSearchController = null;
+      }
+      if (query.length < 2) {
+        renderStockSuggestions([]);
+        searchStatus.textContent = "Type at least 2 characters to search.";
+        return;
+      }
+
+      const requestId = stockSearchRequestId;
+      searchStatus.textContent = "Searching stock and ETF symbols...";
+      stockSearchTimer = window.setTimeout(function () {
+        stockSearchController = new AbortController();
+        apiRequest("/api/stock-search?q=" + encodeURIComponent(query), "", {
+          signal: stockSearchController.signal
+        }).then(function (data) {
+          if (requestId !== stockSearchRequestId) {
+            return;
+          }
+          const results = Array.isArray(data.results) ? data.results : [];
+          renderStockSuggestions(results);
+          searchStatus.textContent = results.length
+            ? results.length + " matching stocks or ETFs. Select a ticker or enter one directly."
+            : "No matches found. You can still enter a ticker symbol directly.";
+        }).catch(function (error) {
+          if (error.name !== "AbortError" && requestId === stockSearchRequestId) {
+            searchStatus.textContent =
+              "Live suggestions are unavailable. You can still enter a ticker symbol directly.";
+          }
+        });
+      }, 250);
+    });
   }
 
   function normalizeEmail(value) {
@@ -1185,17 +1259,20 @@
   initializeNumericFields();
   initializeAddressAutocomplete();
   initializeSettings();
-  STOCKS.forEach(function (stock) {
-    const option = document.createElement("option");
-    option.value = stock.symbol;
-    option.label = stock.name;
-    document.getElementById("stock-symbols").appendChild(option);
-  });
+  initializeStockSearch();
   stockForm.addEventListener("submit", function (event) {
     event.preventDefault();
-    if (symbolInput.reportValidity()) {
-      loadStock(symbolInput.value);
+    const symbol = symbolInput.value.trim();
+    if (!symbol) {
+      symbolInput.reportValidity();
+      return;
     }
+    if (!/^[A-Za-z0-9.^=-]{1,12}$/.test(symbol)) {
+      document.getElementById("stock-search-status").textContent =
+        "Choose a ticker from the suggestions or enter a ticker symbol.";
+      return;
+    }
+    loadStock(symbol);
   });
   window.addEventListener("hashchange", showView);
   document.getElementById("movers-period").addEventListener("change", function () {
