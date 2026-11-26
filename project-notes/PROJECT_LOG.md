@@ -31,6 +31,8 @@ Copy this block for each session.
 | 11/12/26 | Simulated Data   | connecting to external lib | Used cloudflair to connect to the API       |
 | 11/13/26 | Account Creation | Wont send emails           | Use a internal databse with no conformation |
 | 11/16/26 | Login            | internal database          |                                             |
+| 11/26/26 | No Data          | connecting to finance api  | changed api                                  |
+
 
 
 ## What a real version would need
