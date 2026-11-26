@@ -29,6 +29,7 @@
     <nav aria-label="Main navigation">
       <a href="#stocks">Stock research</a>
       <a href="#market-movers">Popular stocks</a>
+      <a href="#news">News</a>
       <a href="#about">Methodology</a>
     </nav>
     <span id="data-badge" class="data-badge"><span aria-hidden="true"></span> Checking market data</span>
@@ -51,7 +52,18 @@
     </div>
   </header>
 
-  <main>
+  <div class="site-layout">
+    <aside class="ad-rail ad-rail-left" aria-label="Sample advertisements">
+      <article class="sample-ad sample-ad-paper">
+        <span class="sample-ad-label">Sample advertisement</span>
+        <span class="sample-ad-icon" aria-hidden="true">P</span>
+        <h2>Practice without pressure.</h2>
+        <p>Paper portfolios make it easy to explore how market moves affect a watchlist.</p>
+        <a href="#stocks">Explore stock research</a>
+        <small>Fictional promotion · no product or offer</small>
+      </article>
+    </aside>
+    <main>
     <section id="stocks" data-view>
       <div class="page-heading">
         <div>
@@ -239,6 +251,25 @@
       <aside class="notice">
         <strong>How to read this page</strong>
         <p>This selection of widely followed stocks and ETFs is ranked by historical price performance, not trading volume or popularity. Past performance does not predict future results and is not a recommendation to buy or sell.</p>
+      </aside>
+    </section>
+
+    <section id="news" data-view hidden>
+      <div class="page-heading">
+        <div>
+          <p class="eyebrow">Market headlines</p>
+          <h1>News shaping the market.</h1>
+          <p class="lead">Recent headlines from Yahoo Finance. Stories open at their original publisher.</p>
+        </div>
+        <button id="news-refresh" class="secondary-button" type="button">Refresh headlines</button>
+      </div>
+      <p id="news-status" class="news-status" role="status" aria-live="polite">Headlines load when you open News.</p>
+      <section id="news-list" class="news-list" aria-label="Latest market headlines">
+        <p class="chart-empty">Open News to load current market headlines.</p>
+      </section>
+      <aside class="notice">
+        <strong>News and investing</strong>
+        <p>Headlines are provided by Yahoo Finance and their publishers. News is for information only and is not investment advice.</p>
       </aside>
     </section>
 
@@ -485,7 +516,18 @@
         <p>Historical performance does not predict future results. The model omits earnings, news, macroeconomic changes, trading costs, and other factors. If too little comparable history is available, the app reports that the confidence estimate cannot be calculated.</p>
       </aside>
     </section>
-  </main>
+    </main>
+    <aside class="ad-rail ad-rail-right" aria-label="Sample advertisements">
+      <article class="sample-ad sample-ad-research">
+        <span class="sample-ad-label">Sample advertisement</span>
+        <span class="sample-ad-icon" aria-hidden="true">+</span>
+        <h2>Make room for research.</h2>
+        <p>Build a simple routine: compare history, check assumptions, and keep learning.</p>
+        <a href="#about">See the methodology</a>
+        <small>Fictional promotion · no product or offer</small>
+      </article>
+    </aside>
+  </div>
 
   <footer class="site-footer">
     <span>CrystalBallStocks market research</span>

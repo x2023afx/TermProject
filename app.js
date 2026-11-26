@@ -38,6 +38,8 @@
   let marketMoversRequestId = 0;
   let marketMoversLoadedPeriod = "";
   let marketMoversLoadingPeriod = "";
+  let newsRequestId = 0;
+  let newsLoaded = false;
   const accountToken = function () {
     try {
       return localStorage.getItem(accountTokenKey) || "";
@@ -881,6 +883,64 @@
     container.appendChild(empty);
   }
 
+  function renderNews(stories) {
+    const list = document.getElementById("news-list");
+    list.replaceChildren();
+    if (!stories.length) {
+      showEmptyMessage(list, "No market headlines are available right now.");
+      return;
+    }
+    stories.forEach(function (story) {
+      const article = document.createElement("article");
+      article.className = "panel news-card";
+      const source = document.createElement("p");
+      source.className = "news-source";
+      source.textContent = story.publisher || "Yahoo Finance";
+      const title = document.createElement("h2");
+      const link = document.createElement("a");
+      link.href = story.link;
+      link.target = "_blank";
+      link.rel = "noopener noreferrer";
+      link.textContent = story.title;
+      title.appendChild(link);
+      const details = document.createElement("p");
+      details.className = "news-details";
+      const published = story.publishedAt ? new Date(story.publishedAt) : null;
+      details.textContent = published && Number.isFinite(published.getTime())
+        ? "Published " + published.toLocaleString()
+        : "Market headline";
+      article.append(source, title, details);
+      list.appendChild(article);
+    });
+  }
+
+  function loadNews(forceRefresh) {
+    if (newsLoaded && !forceRefresh) {
+      return;
+    }
+    const requestId = ++newsRequestId;
+    const status = document.getElementById("news-status");
+    status.textContent = "Loading market headlines...";
+    showEmptyMessage(document.getElementById("news-list"), "Loading headlines...");
+    apiRequest("/api/news", "")
+      .then(function (data) {
+        if (requestId !== newsRequestId) {
+          return;
+        }
+        renderNews(data.stories);
+        status.textContent = "Updated " + new Date(data.updatedAt).toLocaleString() +
+          " · Headlines may be delayed.";
+        newsLoaded = true;
+      })
+      .catch(function (error) {
+        if (requestId === newsRequestId) {
+          status.textContent = error.message;
+          showEmptyMessage(document.getElementById("news-list"),
+            "Headlines are unavailable right now. Try refreshing in a moment.");
+        }
+      });
+  }
+
   function loadBenchmarkHistory(symbol) {
     const status = document.getElementById("benchmark-status");
     const selectedSymbol = symbol;
@@ -1199,6 +1259,9 @@
     });
     if (currentView === "market-movers") {
       loadMarketMovers();
+    }
+    if (currentView === "news") {
+      loadNews(false);
     }
     if (currentView === "stocks") {
       loadWatchlist();
@@ -1616,6 +1679,9 @@
   document.getElementById("movers-period").addEventListener("change", function () {
     marketMoversLoadedPeriod = "";
     loadMarketMovers();
+  });
+  document.getElementById("news-refresh").addEventListener("click", function () {
+    loadNews(true);
   });
   document.getElementById("benchmark-symbol").addEventListener("change", function (event) {
     loadBenchmarkHistory(event.currentTarget.value);

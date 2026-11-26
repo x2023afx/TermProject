@@ -283,6 +283,41 @@ async function searchStocks(query) {
   });
 }
 
+async function fetchMarketNews() {
+  const url = new URL(YAHOO_SEARCH_URL);
+  url.searchParams.set("q", "stock market");
+  url.searchParams.set("quotesCount", "0");
+  url.searchParams.set("newsCount", "15");
+  const response = await fetch(url.toString(), {
+    headers: {
+      "accept": "application/json",
+      "user-agent": "Mozilla/5.0 (compatible; CrystalBallStocks market research)"
+    }
+  });
+  if (!response.ok) {
+    throw new Error("Yahoo Finance news returned HTTP " + response.status + ".");
+  }
+  const payload = await response.json();
+  const news = payload && Array.isArray(payload.news) ? payload.news : [];
+  const stories = news.filter(function (story) {
+    return story && typeof story.title === "string" && typeof story.link === "string" &&
+      /^https?:\/\//i.test(story.link);
+  }).slice(0, 15).map(function (story) {
+    const published = Number.isFinite(story.providerPublishTime)
+      ? new Date(story.providerPublishTime * 1000)
+      : null;
+    return {
+      title: story.title,
+      publisher: typeof story.publisher === "string" ? story.publisher : "Yahoo Finance",
+      link: story.link,
+      publishedAt: published && Number.isFinite(published.getTime())
+        ? published.toISOString()
+        : ""
+    };
+  });
+  return stories;
+}
+
 function mean(values) {
   return values.reduce(function (sum, value) { return sum + value; }, 0) / values.length;
 }
@@ -443,6 +478,13 @@ async function handleApi(request, url, env) {
     }
     const target = results[0].value;
     return { body: buildStockResponse(symbol, target, peerData), status: 200 };
+  }
+
+  if (url.pathname === "/api/news" && request.method === "GET") {
+    return {
+      body: { stories: await fetchMarketNews(), updatedAt: new Date().toISOString() },
+      status: 200
+    };
   }
 
   if (url.pathname === "/api/history" && request.method === "GET") {
