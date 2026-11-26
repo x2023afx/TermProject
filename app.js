@@ -27,6 +27,7 @@
   let stockSearchController = null;
   let stockSearchTimer = null;
   let accountSignedIn = false;
+  let accountStatusLoaded = false;
   let currentStockData = null;
   let currentChartCurrency = "USD";
   let currentChartExchangeRate = 1;
@@ -149,6 +150,7 @@
 
   function displayAccount(signedIn, email) {
     accountSignedIn = signedIn;
+    accountStatusLoaded = true;
     document.getElementById("account-signed-out").hidden = signedIn;
     document.getElementById("account-signed-in").hidden = !signedIn;
     document.getElementById("account-email-display").textContent = email || "";
@@ -165,6 +167,10 @@
     if (!signedIn) {
       closeProfileMenu();
       displayPersonalInfo(null);
+    }
+    updateWatchlistToggle();
+    if (window.location.hash.slice(1) === "stocks") {
+      loadWatchlist();
     }
     renderLookupHistory();
   }
@@ -263,9 +269,27 @@
     const button = document.getElementById("watchlist-toggle");
     const symbol = currentStockData && currentStockData.symbol;
     const saved = symbol && readWatchlist().indexOf(symbol) !== -1;
-    button.disabled = !symbol;
-    button.textContent = saved ? "Remove from watchlist" : "Add to watchlist";
+    button.disabled = !symbol || !accountStatusLoaded;
+    if (!accountStatusLoaded) {
+      button.textContent = "Checking sign-in...";
+    } else if (!accountSignedIn) {
+      button.textContent = saved ? "Sign in to manage watchlist" : "Sign in to add to watchlist";
+    } else {
+      button.textContent = saved ? "Remove from watchlist" : "Add to watchlist";
+    }
     button.setAttribute("aria-pressed", String(Boolean(saved)));
+  }
+
+  function requireWatchlistSignIn() {
+    if (!accountStatusLoaded) {
+      return false;
+    }
+    if (accountSignedIn) {
+      return true;
+    }
+    setAccountMessage("Sign in to add or remove stocks from your watchlist.");
+    window.location.hash = "account";
+    return false;
   }
 
   function renderWatchlist(stocks) {
@@ -312,7 +336,14 @@
       remove.className = "text-button";
       remove.textContent = "Remove";
       remove.setAttribute("aria-label", "Remove " + stock.symbol + " from watchlist");
+      remove.disabled = !accountStatusLoaded || !accountSignedIn;
+      remove.title = !accountStatusLoaded
+        ? "Checking sign-in status."
+        : accountSignedIn ? "" : "Sign in to manage your watchlist.";
       remove.addEventListener("click", function () {
+        if (!requireWatchlistSignIn()) {
+          return;
+        }
         const next = readWatchlist().filter(function (savedSymbol) {
           return savedSymbol !== stock.symbol;
         });
@@ -1962,6 +1993,9 @@
   document.getElementById("watchlist-period").addEventListener("change", loadWatchlist);
   document.getElementById("watchlist-toggle").addEventListener("click", function () {
     if (!currentStockData) {
+      return;
+    }
+    if (!requireWatchlistSignIn()) {
       return;
     }
     const symbol = currentStockData.symbol;
