@@ -213,14 +213,17 @@
 
   function openAccountSection(sectionId) {
     closeProfileMenu();
-    window.location.hash = "account";
+    const section = document.getElementById(sectionId);
+    if (!section) {
+      return;
+    }
+    window.location.hash = sectionId;
     showView();
     window.setTimeout(function () {
-      const section = document.getElementById(sectionId);
-      if (section) {
+      if (!section.closest("[data-view]").hidden) {
         section.scrollIntoView({ behavior: "smooth", block: "start" });
       }
-    }, 0);
+    }, 50);
   }
 
   function setMarketStatus(message, connected) {
@@ -470,7 +473,9 @@
 
   function showView() {
     const requestedView = window.location.hash.slice(1);
-    const currentView = document.getElementById(requestedView) ? requestedView : "stocks";
+    const requestedElement = document.getElementById(requestedView);
+    const parentView = requestedElement && requestedElement.closest("[data-view]");
+    const currentView = parentView ? parentView.id : "stocks";
     document.querySelectorAll("[data-view]").forEach(function (view) {
       view.hidden = view.id !== currentView;
     });
