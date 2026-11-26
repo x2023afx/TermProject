@@ -165,7 +165,11 @@
             </label>
             <label class="personal-info-wide">
               <span class="field-label">Street address</span>
-              <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200">
+              <div class="address-autocomplete">
+                <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200"
+                  aria-autocomplete="list" aria-expanded="false" aria-controls="signup-address-suggestions">
+                <div id="signup-address-suggestions" class="address-suggestions" role="listbox" hidden></div>
+              </div>
             </label>
             <label>
               <span class="field-label">City</span>
@@ -176,9 +180,9 @@
               <input name="region" type="text" autocomplete="address-level1" maxlength="100">
             </label>
             <label>
-              <span class="field-label">ZIP code</span>
-              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="7"
-                pattern="[0-9]{3}-[0-9]{3}" title="Enter 6 digits, formatted as 000-000" data-format="zip">
+              <span class="field-label">Postal code</span>
+              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="24"
+                pattern="[A-Za-z0-9][A-Za-z0-9 -]{0,23}" title="Enter a valid postal code">
             </label>
             <label>
               <span class="field-label">Country</span>
@@ -210,7 +214,11 @@
             </label>
             <label class="personal-info-wide">
               <span class="field-label">Street address</span>
-              <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200">
+              <div class="address-autocomplete">
+                <input name="streetAddress" type="text" autocomplete="street-address" maxlength="200"
+                  aria-autocomplete="list" aria-expanded="false" aria-controls="profile-address-suggestions">
+                <div id="profile-address-suggestions" class="address-suggestions" role="listbox" hidden></div>
+              </div>
             </label>
             <label>
               <span class="field-label">City</span>
@@ -221,9 +229,9 @@
               <input name="region" type="text" autocomplete="address-level1" maxlength="100">
             </label>
             <label>
-              <span class="field-label">ZIP code</span>
-              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="7"
-                pattern="[0-9]{3}-[0-9]{3}" title="Enter 6 digits, formatted as 000-000" data-format="zip">
+              <span class="field-label">Postal code</span>
+              <input name="postalCode" type="text" autocomplete="postal-code" maxlength="24"
+                pattern="[A-Za-z0-9][A-Za-z0-9 -]{0,23}" title="Enter a valid postal code">
             </label>
             <label>
               <span class="field-label">Country</span>

@@ -117,8 +117,8 @@ function validPhone(value) {
   return typeof value === "string" && /^\d{3}-\d{3}-\d{4}$/.test(value);
 }
 
-function validZipCode(value) {
-  return typeof value === "string" && /^\d{3}-\d{3}$/.test(value);
+function validPostalCode(value) {
+  return typeof value === "string" && /^[A-Za-z0-9][A-Za-z0-9 -]{0,23}$/.test(value);
 }
 
 function randomSalt() {
@@ -437,8 +437,8 @@ async function handleApi(request, url, env) {
     if (!profile || typeof profile !== "object" || Array.isArray(profile) ||
       profileFields.some(function (field) {
         return !validRequiredProfileField(profile[field[0]], field[1]);
-      }) || !validPhone(profile.phone) || !validZipCode(profile.postalCode)) {
-      return jsonError("Complete all required fields. Phone must be 000-000-0000 and ZIP code must be 000-000.", 400);
+      }) || !validPhone(profile.phone) || !validPostalCode(profile.postalCode)) {
+      return jsonError("Complete all required fields. Enter a valid phone number and postal code.", 400);
     }
     const now = Date.now();
     if (!await allowAuthRequest(emailInput, request, env, now)) {
@@ -563,8 +563,8 @@ async function handleApi(request, url, env) {
       fields.some(function (field) {
         return !validProfileField(profile[field[0]], field[1]);
       }) || (profile.phone.trim() && !validPhone(profile.phone.trim())) ||
-      (profile.postalCode.trim() && !validZipCode(profile.postalCode.trim()))) {
-      return jsonError("Check profile field lengths. Phone must be 000-000-0000 and ZIP code must be 000-000.", 400);
+      (profile.postalCode.trim() && !validPostalCode(profile.postalCode.trim()))) {
+      return jsonError("Check profile field lengths, phone number, and postal code.", 400);
     }
     const values = fields.map(function (field) { return profile[field[0]].trim() || null; });
     const update = env.DB.prepare(

@@ -519,9 +519,175 @@
   }
 
   function initializeNumericFields() {
-    document.querySelectorAll('input[data-format="phone"], input[data-format="zip"]').forEach(function (input) {
+    document.querySelectorAll('input[data-format="phone"]').forEach(function (input) {
       input.addEventListener("input", function () {
         formatNumericField(input);
+      });
+    });
+  }
+
+  function addressStreet(properties) {
+    const street = properties.street || properties.name || "";
+    return [properties.housenumber, street].filter(Boolean).join(" ");
+  }
+
+  function addressLabel(properties) {
+    return [
+      addressStreet(properties),
+      properties.postcode,
+      properties.city || properties.locality || properties.district,
+      properties.state,
+      properties.country
+    ].filter(Boolean).join(", ");
+  }
+
+  function applyAddressSuggestion(form, properties) {
+    const values = {
+      streetAddress: addressStreet(properties),
+      city: properties.city || properties.locality || properties.district || "",
+      region: properties.state || "",
+      postalCode: properties.postcode || "",
+      country: properties.country || ""
+    };
+    Object.keys(values).forEach(function (field) {
+      form.elements.namedItem(field).value = values[field];
+    });
+  }
+
+  function initializeAddressAutocomplete() {
+    document.querySelectorAll(".address-autocomplete").forEach(function (container) {
+      const input = container.querySelector('input[name="streetAddress"]');
+      const list = container.querySelector('[role="listbox"]');
+      const form = input.form;
+      let timer;
+      let request;
+      let requestId = 0;
+      let activeIndex = -1;
+
+      function closeSuggestions() {
+        requestId += 1;
+        if (request) {
+          request.abort();
+          request = null;
+        }
+        list.hidden = true;
+        list.replaceChildren();
+        input.setAttribute("aria-expanded", "false");
+        input.removeAttribute("aria-activedescendant");
+        activeIndex = -1;
+      }
+
+      function showStatus(message) {
+        list.replaceChildren();
+        const status = document.createElement("div");
+        status.className = "address-suggestion-status";
+        status.setAttribute("role", "option");
+        status.setAttribute("aria-disabled", "true");
+        status.textContent = message;
+        list.appendChild(status);
+        list.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+      }
+
+      function selectSuggestion(properties) {
+        applyAddressSuggestion(form, properties);
+        closeSuggestions();
+      }
+
+      function setActiveOption(nextIndex) {
+        const options = list.querySelectorAll('[role="option"]:not([aria-disabled="true"])');
+        if (!options.length) {
+          return;
+        }
+        activeIndex = (nextIndex + options.length) % options.length;
+        options.forEach(function (option, index) {
+          option.setAttribute("aria-selected", String(index === activeIndex));
+        });
+        input.setAttribute("aria-activedescendant", options[activeIndex].id);
+      }
+
+      function renderSuggestions(features) {
+        list.replaceChildren();
+        activeIndex = -1;
+        if (!features.length) {
+          showStatus("No address suggestions found.");
+          return;
+        }
+        features.forEach(function (feature, index) {
+          const option = document.createElement("button");
+          option.type = "button";
+          option.id = "address-option-" + requestId + "-" + index;
+          option.setAttribute("role", "option");
+          option.setAttribute("aria-selected", "false");
+          option.className = "address-suggestion";
+          option.textContent = addressLabel(feature.properties);
+          option.addEventListener("pointerdown", function (event) {
+            event.preventDefault();
+          });
+          option.addEventListener("click", function () {
+            selectSuggestion(feature.properties);
+          });
+          list.appendChild(option);
+        });
+        list.hidden = false;
+        input.setAttribute("aria-expanded", "true");
+      }
+
+      input.addEventListener("input", function () {
+        window.clearTimeout(timer);
+        requestId += 1;
+        if (request) {
+          request.abort();
+        }
+        const query = input.value.trim();
+        if (query.length < 3) {
+          closeSuggestions();
+          return;
+        }
+        showStatus("Searching for addresses...");
+        timer = window.setTimeout(function () {
+          const currentRequestId = requestId;
+          request = new AbortController();
+          const url = "https://photon.komoot.io/api/?q=" +
+            encodeURIComponent(query) + "&limit=5&lang=en";
+          fetch(url, { signal: request.signal, headers: { accept: "application/json" } })
+            .then(function (response) {
+              if (!response.ok) {
+                throw new Error("Address lookup returned HTTP " + response.status + ".");
+              }
+              return response.json();
+            })
+            .then(function (data) {
+              if (currentRequestId === requestId) {
+                renderSuggestions(Array.isArray(data.features) ? data.features : []);
+              }
+            })
+            .catch(function (error) {
+              if (error.name !== "AbortError" && currentRequestId === requestId) {
+                showStatus("Address suggestions are unavailable. You can enter the address manually.");
+              }
+            });
+        }, 300);
+      });
+
+      input.addEventListener("keydown", function (event) {
+        const options = list.querySelectorAll('[role="option"]:not([aria-disabled="true"])');
+        if (event.key === "ArrowDown" && !list.hidden) {
+          event.preventDefault();
+          setActiveOption(activeIndex + 1);
+        } else if (event.key === "ArrowUp" && !list.hidden) {
+          event.preventDefault();
+          setActiveOption(activeIndex < 0 ? options.length - 1 : activeIndex - 1);
+        } else if (event.key === "Enter" && activeIndex >= 0) {
+          event.preventDefault();
+          options[activeIndex].click();
+        } else if (event.key === "Escape") {
+          closeSuggestions();
+        }
+      });
+
+      input.addEventListener("blur", function () {
+        window.setTimeout(closeSuggestions, 150);
       });
     });
   }
@@ -713,6 +879,7 @@
   document.getElementById("account-password").autocomplete = "current-password";
   setAccountFormMode("login");
   initializeNumericFields();
+  initializeAddressAutocomplete();
   initializeSettings();
   STOCKS.forEach(function (stock) {
     const option = document.createElement("option");
