@@ -138,13 +138,23 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .movers-legend-marker.movers-line-3 { background: #8d5ab4; }
 .movers-legend-marker.movers-line-4 { background: #ce5960; }
 .movers-list { display: grid; }
-.mover-row { display: grid; grid-template-columns: 35px minmax(150px, 1fr) minmax(90px, .7fr) minmax(80px, .6fr) auto; gap: 14px; align-items: center; padding: 12px 4px; border-top: 1px solid var(--border); }
+.mover-entry { border-top: 1px solid var(--border); }
+.mover-row { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: center; padding: 12px 4px; }
+.mover-toggle { display: grid; grid-template-columns: 35px minmax(150px, 1fr) minmax(90px, .7fr) minmax(80px, .6fr); gap: 14px; align-items: center; width: 100%; padding: 0; color: var(--ink); background: transparent; border: 0; font: inherit; text-align: left; cursor: pointer; }
+.mover-toggle:focus-visible { outline: 3px solid #73aa8d; outline-offset: 3px; border-radius: 4px; }
 .mover-rank { color: var(--muted); font-size: .75rem; font-variant-numeric: tabular-nums; }
 .mover-identity { display: grid; gap: 1px; min-width: 0; }
 .mover-identity strong { font-size: .84rem; }
 .mover-identity span, .mover-price { overflow: hidden; color: var(--muted); font-size: .72rem; text-overflow: ellipsis; white-space: nowrap; }
-.mover-row > strong { font-size: .82rem; text-align: right; font-variant-numeric: tabular-nums; }
+.mover-toggle > strong { font-size: .82rem; text-align: right; font-variant-numeric: tabular-nums; }
 .mover-row .text-button { font-size: .75rem; }
+.mover-trend { padding: 10px 12px 15px 49px; background: var(--canvas); border-radius: 9px; }
+.mover-trend-heading { display: flex; justify-content: space-between; gap: 12px; font-size: .77rem; }
+.mover-trend-heading span { font-weight: 700; }
+.mover-trend-chart { display: block; width: 100%; height: 180px; margin-top: 8px; overflow: visible; }
+.mover-trend-line { fill: none; stroke: var(--green); stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; vector-effect: non-scaling-stroke; }
+.mover-trend-zero { stroke: #aeb8b1; stroke-width: 1; stroke-dasharray: 4 5; vector-effect: non-scaling-stroke; }
+.mover-trend-range { display: flex; justify-content: space-between; gap: 8px; color: var(--muted); font-size: .68rem; }
 .comparables-list { display: grid; }
 .comparable-row { display: grid; grid-template-columns: .45fr 1fr 1fr; gap: 10px; align-items: center; padding: 10px 0; border-top: 1px solid #edf0ed; font-size: .77rem; }
 .comparable-row strong { font-size: .8rem; }
@@ -208,7 +218,7 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
   .quote-card { grid-column: 1 / -1; }
   .research-grid { grid-template-columns: 1fr; }
   .method-cards { grid-template-columns: 1fr; }
-  .mover-row { grid-template-columns: 25px minmax(90px, 1fr) minmax(65px, .7fr) minmax(70px, .6fr); gap: 8px; }
+  .mover-toggle { grid-template-columns: 25px minmax(90px, 1fr) minmax(65px, .7fr) minmax(70px, .6fr); gap: 8px; }
   .mover-row .text-button { grid-column: 2 / -1; justify-self: start; padding-top: 0; }
 }
 @media (max-width: 480px) {
@@ -222,10 +232,14 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
   .movers-controls label { width: 100%; }
   .movers-controls p { margin: 0; text-align: left; }
   .movers-chart-panel, .movers-list-panel { padding: 15px; }
-  .mover-row { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 7px; }
-  .mover-price { grid-column: 2; }
-  .mover-row > strong { grid-column: 3; grid-row: 1 / span 2; }
-  .mover-row .text-button { grid-column: 2 / -1; }
+  .mover-toggle { grid-template-columns: 22px minmax(0, 1fr) auto; gap: 7px; }
+  .mover-toggle .mover-rank { grid-column: 1; grid-row: 1 / span 2; }
+  .mover-toggle .mover-identity { grid-column: 2; grid-row: 1; }
+  .mover-toggle .mover-price { grid-column: 2; grid-row: 2; }
+  .mover-toggle > strong { grid-column: 3; grid-row: 1 / span 2; }
+  .mover-row .text-button { grid-column: 2; justify-self: start; }
+  .mover-trend { padding: 10px; }
+  .mover-trend-range { flex-direction: column; gap: 2px; }
   .stock-search .primary-button { width: 100%; }
   .personal-info-wide { grid-column: auto; }
   .overview-grid { grid-template-columns: 1fr; }

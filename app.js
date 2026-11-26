@@ -385,8 +385,11 @@
     }, []);
 
     list.replaceChildren();
+    let expandedEntry = null;
     stocks.forEach(function (stock, index) {
-      const row = document.createElement("article");
+      const entry = document.createElement("article");
+      entry.className = "mover-entry";
+      const row = document.createElement("div");
       row.className = "mover-row";
       const rank = document.createElement("span");
       rank.className = "mover-rank";
@@ -404,6 +407,80 @@
       const change = document.createElement("strong");
       change.className = stock.periodReturn > 0 ? "positive" : stock.periodReturn < 0 ? "negative" : "";
       change.textContent = formatPercent(stock.periodReturn);
+      const toggle = document.createElement("button");
+      toggle.type = "button";
+      toggle.className = "mover-toggle";
+      toggle.setAttribute("aria-expanded", "false");
+      toggle.setAttribute("aria-label", "Show " + stock.symbol + " price trend");
+      toggle.append(rank, identity, price, change);
+      const details = document.createElement("div");
+      details.className = "mover-trend";
+      details.hidden = true;
+      details.id = "mover-trend-" + stock.symbol.toLowerCase();
+      toggle.setAttribute("aria-controls", details.id);
+      const trendHeading = document.createElement("div");
+      trendHeading.className = "mover-trend-heading";
+      const trendTitle = document.createElement("strong");
+      trendTitle.textContent = stock.symbol + " price trend";
+      const trendSummary = document.createElement("span");
+      trendSummary.className = stock.periodReturn > 0 ? "positive" : stock.periodReturn < 0 ? "negative" : "";
+      trendSummary.textContent =
+        (stock.periodReturn > 0 ? "Upward" : stock.periodReturn < 0 ? "Downward" : "Flat") +
+        " over " + formatPercent(stock.periodReturn);
+      trendHeading.append(trendTitle, trendSummary);
+      const trendChart = document.createElementNS("http://www.w3.org/2000/svg", "svg");
+      trendChart.setAttribute("class", "mover-trend-chart");
+      trendChart.setAttribute("viewBox", "0 0 720 180");
+      trendChart.setAttribute("role", "img");
+      trendChart.setAttribute("aria-label", stock.symbol + " historical price change over " +
+        document.getElementById("movers-period").selectedOptions[0].textContent);
+      const chartRange = document.createElement("div");
+      chartRange.className = "mover-trend-range";
+      chartRange.textContent = stock.history[0].date + "  ·  " +
+        formatCurrency(stock.history[0].close, stock.currency) + " to " +
+        formatCurrency(stock.price, stock.currency) + "  ·  " +
+        stock.history[stock.history.length - 1].date;
+      details.append(trendHeading, trendChart, chartRange);
+      toggle.addEventListener("click", function () {
+        const opening = details.hidden;
+        if (expandedEntry && expandedEntry !== entry) {
+          expandedEntry.querySelector(".mover-toggle").setAttribute("aria-expanded", "false");
+          expandedEntry.querySelector(".mover-trend").hidden = true;
+        }
+        details.hidden = !opening;
+        toggle.setAttribute("aria-expanded", String(opening));
+        if (opening) {
+          expandedEntry = entry;
+          if (!trendChart.hasChildNodes()) {
+            const returns = stock.history.map(function (item) {
+              return item.close / stock.history[0].close - 1;
+            });
+            const minReturn = Math.min.apply(null, returns.concat([0]));
+            const maxReturn = Math.max.apply(null, returns.concat([0]));
+            const spreadReturn = maxReturn - minReturn || 0.02;
+            const top = 12;
+            const bottom = 168;
+            const path = returns.map(function (value, pointIndex) {
+              const x = pointIndex * 720 / Math.max(returns.length - 1, 1);
+              const y = top + (maxReturn - value) * (bottom - top) / spreadReturn;
+              return (pointIndex === 0 ? "M" : "L") + x.toFixed(2) + " " + y.toFixed(2);
+            }).join(" ");
+            const zeroY = top + maxReturn * (bottom - top) / spreadReturn;
+            const baseline = document.createElementNS("http://www.w3.org/2000/svg", "line");
+            baseline.setAttribute("x1", "0");
+            baseline.setAttribute("x2", "720");
+            baseline.setAttribute("y1", zeroY.toFixed(2));
+            baseline.setAttribute("y2", zeroY.toFixed(2));
+            baseline.setAttribute("class", "mover-trend-zero");
+            const line = document.createElementNS("http://www.w3.org/2000/svg", "path");
+            line.setAttribute("d", path);
+            line.setAttribute("class", "mover-trend-line");
+            trendChart.append(baseline, line);
+          }
+        } else {
+          expandedEntry = null;
+        }
+      });
       const analyze = document.createElement("button");
       analyze.type = "button";
       analyze.className = "text-button";
@@ -414,8 +491,9 @@
         window.location.hash = "stocks";
         loadStock(stock.symbol);
       });
-      row.append(rank, identity, price, change, analyze);
-      list.appendChild(row);
+      row.append(toggle, analyze);
+      entry.append(row, details);
+      list.appendChild(entry);
     });
 
     if (topStocks.length < 2 || !allReturns.length) {
