@@ -47,7 +47,9 @@ a { color: inherit; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible { outline: 3px solid #73aa8d; outline-offset: 3px; }
 .site-header { min-height: 72px; padding: 0 max(28px, calc((100% - 1120px) / 2)); display: flex; align-items: center; gap: 38px; background: var(--surface); border-bottom: 1px solid var(--border); }
 .brand { display: flex; align-items: center; gap: 10px; font-size: 1.05rem; font-weight: 750; text-decoration: none; white-space: nowrap; }
-.brand-mark { display: grid; place-items: center; width: 30px; height: 30px; color: #fff; background: var(--green); border-radius: 9px; }
+.brand-mark { position: relative; display: inline-flex; flex: 0 0 38px; align-items: center; width: 38px; height: 30px; }
+.brand-mark svg { position: absolute; left: 0; width: 30px; height: 30px; overflow: visible; fill: #e6b94f; filter: drop-shadow(0 1px 1px rgb(23 36 31 / 18%)); }
+.brand-mark > span { position: absolute; z-index: 1; right: 0; color: var(--green-dark); font-size: 1.28rem; font-weight: 900; line-height: 1; text-shadow: -2px 0 var(--canvas), 0 2px var(--canvas), 2px 0 var(--canvas), 0 -2px var(--canvas); }
 nav { display: flex; align-items: center; gap: 25px; }
 nav a { color: var(--muted); font-size: .88rem; font-weight: 600; text-decoration: none; }
 nav a:hover { color: var(--green); }
