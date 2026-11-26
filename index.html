@@ -4,20 +4,27 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="referrer" content="no-referrer">
-  <meta name="description" content="Explore real stock prices, historical comparisons, and short-term model projections.">
-  <title>Northstar</title>
+  <meta name="description" content="Explore stock prices, market performance, historical comparisons, and statistical projections with CrystalBallStocks.">
+  <title>CrystalBallStocks</title>
   <link rel="stylesheet" href="styles.css">
 </head>
 <body>
   <header class="site-header">
-    <a class="brand" href="#stocks" aria-label="Northstar">
+    <a class="brand" href="#stocks" aria-label="CrystalBallStocks">
       <span class="brand-mark" aria-hidden="true">
         <svg viewBox="0 0 32 32" focusable="false">
-          <path d="M16 1.5 19.8 11l10.2 1-7.7 6.7 2.4 10-8.7-5.3-8.7 5.3 2.4-10L2 12l10.2-1L16 1.5Z"></path>
+          <defs>
+            <linearGradient id="crystal-orb" x1="5" y1="4" x2="27" y2="29" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#b9c9ff"></stop>
+              <stop offset="1" stop-color="#6553d8"></stop>
+            </linearGradient>
+          </defs>
+          <circle cx="16" cy="17" r="12" fill="url(#crystal-orb)"></circle>
+          <path d="M9 19.5 14 24l-2.2-7.2L17 9l-7 4.2L8 19.5Z" fill="#fff" fill-opacity=".72"></path>
+          <path d="M21.5 2.5 23 7l4.5 1.5L23 10l-1.5 4.5L20 10l-4.5-1.5L20 7l1.5-4.5Z" fill="#f3c969"></path>
         </svg>
-        <span>N</span>
       </span>
-      orthstar
+      CrystalBallStocks
     </a>
     <nav aria-label="Main navigation">
       <a href="#stocks">Stock research</a>
@@ -195,7 +202,7 @@
     <section id="account" data-view hidden>
       <div class="page-heading">
         <div>
-          <p class="eyebrow">Your Northstar account</p>
+          <p class="eyebrow">Your CrystalBallStocks account</p>
           <h1>Sign in without email confirmation.</h1>
           <p class="lead">An account lets you sign in to this research prototype. No confirmation or sign-in emails are sent.</p>
         </div>
@@ -392,7 +399,7 @@
   </main>
 
   <footer class="site-footer">
-    <span>Northstar stock research prototype</span>
+    <span>CrystalBallStocks market research</span>
     <span>Market data is not investment advice</span>
   </footer>
   <script src="data.js"></script>

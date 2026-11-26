@@ -201,7 +201,7 @@ async function fetchStockHistory(symbol) {
   const response = await fetch(url.toString(), {
     headers: {
       "accept": "application/json",
-      "user-agent": "Mozilla/5.0 (compatible; Northstar stock research)"
+      "user-agent": "Mozilla/5.0 (compatible; CrystalBallStocks market research)"
     }
   });
   if (!response.ok) {

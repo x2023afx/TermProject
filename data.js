@@ -1,7 +1,7 @@
 "use strict";
 
 const STARTUP = {
-  name: "Northstar",
+  name: "CrystalBallStocks",
   apiBaseUrl: "https://pace-pattern-private.x2023afx.workers.dev"
 };
 
