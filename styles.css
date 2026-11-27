@@ -195,7 +195,12 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .forecast-row strong { align-self: center; font-size: .79rem; }
 .forecast-row > span { text-align: right; font-size: .95rem; font-weight: 700; font-variant-numeric: tabular-nums; }
 .forecast-row small { grid-column: 1 / -1; color: var(--muted); font-size: .68rem; text-align: right; }
-.forecast-method { margin: 14px 0 0; padding-top: 12px; color: var(--muted); border-top: 1px solid var(--border); font-size: .7rem; }
+.forecast-net-row { margin-top: 6px; padding-top: 12px; border-top: 1px solid var(--border); }
+.trading-assumptions { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 9px; margin: 15px 0 8px; padding: 12px; border: 1px solid var(--border); border-radius: 10px; }
+.trading-assumptions legend { padding: 0 5px; color: var(--muted); font-size: .69rem; font-weight: 700; }
+.trading-assumptions label { display: grid; gap: 4px; min-width: 0; color: var(--muted); font-size: .66rem; }
+.trading-assumptions input { height: 34px; padding: 0 8px; font-size: .75rem; }
+.forecast-method { margin: 14px 0 0; padding-top: 12px; color: var(--muted); border-top: 1px solid var(--border); font-size: .7rem; line-height: 1.5; }
 .comparables-panel { margin-top: 15px; }
 .watchlist-panel { margin-top: 15px; }
 .watchlist-status { margin: -5px 0 8px; color: var(--muted); font-size: .7rem; }
@@ -334,6 +339,8 @@ select { height: 44px; padding: 0 12px; color: var(--ink); background: var(--sur
 .method-card { padding: 21px; }
 .method-card h2 { margin: 15px 0 7px; font-size: 1rem; }
 .method-card p { margin: 0; color: var(--muted); font-size: .82rem; }
+.method-algorithm { display: grid; gap: 9px; margin: 10px 0; padding-left: 20px; color: var(--muted); font-size: .78rem; }
+.method-algorithm li { padding-left: 2px; }
 .site-footer { display: flex; justify-content: space-between; gap: 12px; padding: 19px max(28px, calc((100% - 1120px) / 2)); color: var(--muted); background: var(--surface); border-top: 1px solid var(--border); font-size: .7rem; }
 [hidden] { display: none !important; }
 

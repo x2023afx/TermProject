@@ -8,6 +8,7 @@ Your prototype shows *what* the product looks like. This document explains *why*
 - **Problem:** What problem do they have today, and how do they solve it now?
 - **Solution:** What does your product do differently or better?
 - **Revenue:** How does the company make money?
+Crystal Ball Stock is a product for people who don't have the time to watch different stocks throughout the day. And just want to be able to take a quick glance at some basic numbers that show what the trend of the stock is
 
 ## 2. Where IT creates value
 

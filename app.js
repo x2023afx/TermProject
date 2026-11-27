@@ -7,6 +7,12 @@
   const settingsKey = "northstarSettings";
   const maxLookups = 10;
   const maxWatchlistStocks = 8;
+  const defaultTradeAssumptions = {
+    tradeSize: 1000,
+    commissionPerOrder: 0,
+    slippagePercent: 0.1,
+    minimumOrder: 1
+  };
   const currencies = {
     AUD: "Australian Dollar", BRL: "Brazilian Real", CAD: "Canadian Dollar",
     CHF: "Swiss Franc", CNY: "Chinese Renminbi Yuan", CZK: "Czech Koruna",
@@ -83,7 +89,10 @@
   }
 
   function readSettings() {
-    const defaults = { darkMode: false, currency: "MARKET", dateRange: "3m" };
+    const defaults = Object.assign(
+      { darkMode: false, currency: "MARKET", dateRange: "3m" },
+      defaultTradeAssumptions
+    );
     try {
       const saved = JSON.parse(localStorage.getItem(settingsKey) || "{}");
       return {
@@ -93,11 +102,24 @@
           : defaults.currency,
         dateRange: ["1w", "1m", "3m", "6m", "1y", "5y"].indexOf(saved.dateRange) !== -1
           ? saved.dateRange
-          : defaults.dateRange
+          : defaults.dateRange,
+        tradeSize: readBoundedNumber(saved.tradeSize, defaultTradeAssumptions.tradeSize, 1, 100000000),
+        commissionPerOrder: readBoundedNumber(
+          saved.commissionPerOrder, defaultTradeAssumptions.commissionPerOrder, 0, 10000
+        ),
+        slippagePercent: readBoundedNumber(
+          saved.slippagePercent, defaultTradeAssumptions.slippagePercent, 0, 10
+        ),
+        minimumOrder: readBoundedNumber(saved.minimumOrder, defaultTradeAssumptions.minimumOrder, 0, 100000000)
       };
     } catch (error) {
       return defaults;
     }
+  }
+
+  function readBoundedNumber(value, fallback, minimum, maximum) {
+    const number = Number(value);
+    return Number.isFinite(number) && number >= minimum && number <= maximum ? number : fallback;
   }
 
   function saveSettings(settings) {
@@ -116,13 +138,24 @@
   }
 
   function resetSettingsToDefaults() {
-    const defaults = Object.assign({}, readSettings(), { currency: "MARKET", dateRange: "3m" });
+    const defaults = Object.assign({}, readSettings(), defaultTradeAssumptions, {
+      currency: "MARKET",
+      dateRange: "3m"
+    });
     saveSettings(defaults);
     document.getElementById("currency-setting").value = defaults.currency;
     document.getElementById("date-range-setting").value = defaults.dateRange;
+    setTradeAssumptionInputs(defaults);
     if (currentStockData) {
       renderStock(currentStockData);
     }
+  }
+
+  function setTradeAssumptionInputs(settings) {
+    document.getElementById("trade-size-setting").value = String(settings.tradeSize);
+    document.getElementById("commission-setting").value = String(settings.commissionPerOrder);
+    document.getElementById("slippage-setting").value = String(settings.slippagePercent);
+    document.getElementById("minimum-order-setting").value = String(settings.minimumOrder);
   }
 
   function initializeSettings() {
@@ -137,6 +170,7 @@
     document.getElementById("dark-mode-setting").checked = settings.darkMode;
     currencySelect.value = settings.currency;
     document.getElementById("date-range-setting").value = settings.dateRange;
+    setTradeAssumptionInputs(settings);
     applyTheme(settings.darkMode);
 
     document.getElementById("dark-mode-setting").addEventListener("change", function (event) {
@@ -155,6 +189,29 @@
       if (saveSettings(next) && currentStockData) {
         renderStock(currentStockData);
       }
+    });
+    [
+      { id: "trade-size-setting", key: "tradeSize" },
+      { id: "commission-setting", key: "commissionPerOrder" },
+      { id: "slippage-setting", key: "slippagePercent" },
+      { id: "minimum-order-setting", key: "minimumOrder" }
+    ].forEach(function (field) {
+      document.getElementById(field.id).addEventListener("change", function (event) {
+        const input = event.currentTarget;
+        if (!input.reportValidity()) {
+          input.value = String(readSettings()[field.key]);
+          return;
+        }
+        const value = Number(input.value);
+        if (!Number.isFinite(value)) {
+          return;
+        }
+        const next = Object.assign({}, readSettings());
+        next[field.key] = value;
+        if (saveSettings(next) && currentStockData) {
+          renderStock(currentStockData);
+        }
+      });
     });
   }
 
@@ -741,9 +798,67 @@
       row.append(label, point, interval);
       forecastResults.appendChild(row);
     });
+    const settings = readSettings();
+    const tradeRow = document.createElement("div");
+    tradeRow.className = "forecast-row forecast-net-row";
+    const tradeLabel = document.createElement("strong");
+    tradeLabel.textContent = "Illustrative net P/L";
+    const tradeResult = document.createElement("span");
+    const tradeDetail = document.createElement("small");
+    if (settings.tradeSize < settings.minimumOrder) {
+      tradeResult.textContent = "Below minimum";
+      tradeDetail.textContent = "Order amount is below the " +
+        formatCurrency(settings.minimumOrder, data.currency) + " minimum.";
+    } else {
+      const grossProfit = settings.tradeSize * data.projectionPercent;
+      const slippageRate = settings.slippagePercent / 100;
+      const roundTripCosts = settings.commissionPerOrder * 2 +
+        settings.tradeSize * slippageRate +
+        settings.tradeSize * (1 + data.projectionPercent) * slippageRate;
+      const netProfit = grossProfit - roundTripCosts;
+      tradeResult.textContent = formatCurrency(netProfit * exchangeRate, currencyCode);
+      tradeDetail.textContent = "Gross estimate " +
+        formatCurrency(grossProfit * exchangeRate, currencyCode) +
+        " less estimated round-trip costs " +
+        formatCurrency(roundTripCosts * exchangeRate, currencyCode) +
+        "; " + formatPercent(netProfit / settings.tradeSize) + " of order amount.";
+    }
+    tradeRow.append(tradeLabel, tradeResult, tradeDetail);
+    forecastResults.appendChild(tradeRow);
+
+    const signals = data.marketSignals || {
+      available: false,
+      sentiment: 0,
+      companyHeadlineCount: 0,
+      macroHeadlineCount: 0,
+      earningsEvent: false,
+      macroEvent: false,
+      newsAdjustmentPercent: 0,
+      eventVolatilityMultiplier: 1
+    };
+    const signalDescription = signals.available
+      ? "Recent headline tilt: " +
+        (signals.sentiment > 0.1 ? "positive" : signals.sentiment < -0.1 ? "negative" : "neutral") +
+        " across " + signals.companyHeadlineCount + " company and " +
+        signals.macroHeadlineCount + " macro headlines; estimated two-session drift adjustment " +
+        formatPercent(signals.newsAdjustmentPercent) + "."
+      : "No recent dated company or macro headlines were available to score.";
+    const eventDescription = [
+      signals.earningsEvent ? "earnings-related coverage detected" : "",
+      signals.macroEvent ? "macro-event coverage detected" : ""
+    ].filter(Boolean).join("; ");
+    const volatilityDescription = signals.eventVolatilityMultiplier > 1
+      ? "Headline event flags widened the model range by " +
+        Math.round((signals.eventVolatilityMultiplier - 1) * 100) + "%."
+      : "No earnings or macro event keywords were detected in recent headlines.";
     document.getElementById("forecast-method").textContent =
-      "Based on " + data.model.returnObservations + " aligned historical daily returns. " +
-      data.model.comparables.length + " comparable securities included.";
+      "Historical baseline: " + data.model.returnObservations +
+      " aligned daily returns and " + data.model.comparables.length +
+      " comparison securities. " + signalDescription + " " +
+      (eventDescription ? "Flags: " + eventDescription + ". " : "") +
+      volatilityDescription +
+      " Headline scoring is a keyword heuristic, not a verified event calendar. " +
+      "Historical directional accuracy excludes current news and trading costs.";
   }
 
   function renderComparables(data) {

@@ -17,9 +17,12 @@ The News page loads market headlines from Yahoo Finance. Desktop side rails disp
 - The Cloudflare Worker retrieves up to five years of daily historical prices and live ticker/company-name search suggestions from Yahoo Finance. No API key is required. These are unofficial endpoints and may be rate-limited or changed by Yahoo; data can be delayed.
 - Each ticker's response is cached at the Worker edge for one hour to reduce repeated provider requests.
 - Known tickers use comparison securities configured in `worker.js`. Other valid symbols use SPY and QQQ as broad-market comparators.
-- The projection blends the selected stock's mean daily return over the latest 60 aligned observations (60%) with the mean of available comparables' returns (40%), then compounds the blended mean for two sessions.
-- The displayed confidence is the directional accuracy from up to 60 rolling out-of-sample, two-session historical tests. It is not the probability that the next projection will be right. The price range uses the historical dispersion of blended daily returns and is also not a guarantee.
-- The model does not account for news, earnings, macroeconomic events, fees, or trading constraints. Use the site for research and education, not as a recommendation to trade.
+- The projection aligns daily closes with available comparables, calculates daily percentage returns, then blends each stock return (60%) with the mean return of its available comparables (40%). It averages the latest 60 blended observations (at least 30 are required) and compounds that mean from the latest close for one and two sessions.
+- Current Yahoo Finance ticker headlines and broad U.S. macro headlines published in the last seven days are scored using a small positive/negative keyword list. When dated headlines are available, the weighted score can adjust the two-session daily drift by up to 10% of recent blended-return volatility (company headlines receive 70% weight and macro headlines 30%, renormalized if one source is unavailable). This is a simple heuristic, not language understanding or a reliable measure of market sentiment.
+- Recent headlines containing earnings-related or macro-event terms widen the range using fixed multipliers (1.25 for an earnings-related headline and 1.20 for a macro-event headline; both combine multiplicatively). This is not a scheduled earnings or economic calendar, so events without matching recent headlines are not detected.
+- The displayed 80% model range uses the sample standard deviation of blended returns scaled by the square root of the forecast horizon, then applies the detected event multipliers. It is a statistical estimate, not a guarantee.
+- Directional accuracy is measured over up to 60 earlier two-session tests using historical returns only; current news signals and estimated trading costs are not included in that backtest. The rate is not the probability that the next projection will be right.
+- Editable browser-local assumptions estimate a hypothetical long position's net two-session result after round-trip commission and slippage and flag an order below the selected minimum order size. Defaults are a $1,000 order, $0 commission per order, 0.1% slippage per side, and a $1 minimum order. These assumptions do not alter the forecast price, model broker-specific rules, or place trades. Use the site for research and education, not as a recommendation to trade.
 
 ## Deploy the public site and API
 
@@ -38,7 +41,7 @@ The stock research page works without an account. Accounts are only for sign-in 
 
 Email addresses, personal details, password hashes, sessions, and account rate-limit hashes are stored in the bound D1 database. Address suggestions are retrieved from Photon (Komoot); the partial address you type is sent to that service. Session tokens and up to ten recent stock lookup symbols are kept in this browser's local storage; lookup history is not sent to the server. Sign out on shared devices. The account page can delete the account. Existing sports-journal tables in a previously provisioned D1 database are left untouched by the application.
 
-Display preferences (dark mode, chart range, and currency) are stored in this browser. Currency conversion uses Frankfurter reference rates, which are delayed and may not be available for every market currency; if conversion fails, prices remain in the security's market currency.
+Display preferences (dark mode, chart range, and currency) and illustrative trade assumptions are stored in this browser. Signing out restores the trade-assumption defaults but preserves the selected theme. Currency conversion uses Frankfurter reference rates, which are delayed and may not be available for every market currency; if conversion fails, prices remain in the security's market currency.
 
 ## Files
 

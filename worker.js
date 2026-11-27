@@ -9,6 +9,7 @@ const DUMMY_PASSWORD_SALT = "7f2e8a4c1d9b6f305a7c2e8d4b1f6093";
 const SYMBOL_PATTERN = /^[A-Z0-9.^=-]{1,12}$/;
 const EMAIL_PATTERN = /^[A-Z0-9.!#$%&'*+/=?^_`{|}~-]+@[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?(?:\.[A-Z0-9](?:[A-Z0-9-]{0,61}[A-Z0-9])?)+$/i;
 const STOCK_CACHE_TTL_SECONDS = 3600;
+const HEADLINE_CACHE_TTL_SECONDS = 300;
 const MARKET_MOVER_SYMBOLS = [
   "AAPL", "MSFT", "NVDA", "AMZN", "GOOGL", "META", "TSLA",
   "JPM", "V", "WMT", "XOM", "SPY", "QQQ"
@@ -359,10 +360,23 @@ async function fetchTrendingSymbols() {
 }
 
 async function fetchSymbolHeadlines(symbol) {
+  return fetchSearchHeadlines(symbol, 3);
+}
+
+async function fetchSearchHeadlines(query, count) {
+  const cacheKey = new Request("https://northstar-headline-cache-yahoo.invalid/" +
+    encodeURIComponent(query) + "/" + count);
+  const cache = typeof caches !== "undefined" ? caches.default : null;
+  if (cache) {
+    const cached = await cache.match(cacheKey);
+    if (cached) {
+      return cached.json();
+    }
+  }
   const url = new URL(YAHOO_SEARCH_URL);
-  url.searchParams.set("q", symbol);
+  url.searchParams.set("q", query);
   url.searchParams.set("quotesCount", "0");
-  url.searchParams.set("newsCount", "3");
+  url.searchParams.set("newsCount", String(count));
   const response = await fetch(url.toString(), {
     headers: {
       "accept": "application/json",
@@ -370,20 +384,84 @@ async function fetchSymbolHeadlines(symbol) {
     }
   });
   if (!response.ok) {
-    throw new Error("Yahoo Finance news returned HTTP " + response.status + " for " + symbol + ".");
+    throw new Error("Yahoo Finance news returned HTTP " + response.status + " for " + query + ".");
   }
   const payload = await response.json();
   const news = payload && Array.isArray(payload.news) ? payload.news : [];
-  return news.filter(function (story) {
+  const stories = news.filter(function (story) {
     return story && typeof story.title === "string" && typeof story.link === "string" &&
       /^https?:\/\//i.test(story.link);
-  }).slice(0, 2).map(function (story) {
+  }).slice(0, count).map(function (story) {
+    const published = Number.isFinite(story.providerPublishTime)
+      ? new Date(story.providerPublishTime * 1000)
+      : null;
     return {
       title: story.title,
       publisher: typeof story.publisher === "string" ? story.publisher : "Yahoo Finance",
-      link: story.link
+      link: story.link,
+      publishedAt: published && Number.isFinite(published.getTime()) ? published.toISOString() : ""
     };
   });
+  if (cache) {
+    await cache.put(cacheKey, new Response(JSON.stringify(stories), {
+      headers: {
+        "content-type": "application/json; charset=utf-8",
+        "cache-control": "public, max-age=" + HEADLINE_CACHE_TTL_SECONDS
+      }
+    }));
+  }
+  return stories;
+}
+
+function scoreHeadlineStories(companyStories, macroStories, now) {
+  const positiveTerms = /\b(beat|beats|growth|grows|upgrade|upgraded|profit|profitable|record|surge|surges|rally|strong|approval|approved|outperform|rebound|raises|raised)\b/gi;
+  const negativeTerms = /\b(miss|misses|missed|cut|cuts|cutting|downgrade|downgraded|loss|losses|warning|warns|plunge|plunges|weak|decline|declines|layoff|layoffs|investigation|investigated|falls|drop|drops|lower)\b/gi;
+  const earningsTerms = /\b(earnings|quarterly results|quarter|eps|guidance|revenue)\b/i;
+  const macroTerms = /\b(federal reserve|\bfed\b|inflation|consumer price index|\bcpi\b|interest rate|rate decision|unemployment|payrolls|jobs report|\bgdp\b|recession|tariff|economic data)\b/i;
+  const cutoff = now - 7 * 24 * 60 * 60 * 1000;
+
+  function inspect(stories) {
+    const recent = stories.filter(function (story) {
+      const published = Date.parse(story.publishedAt);
+      return Number.isFinite(published) && published <= now && published >= cutoff;
+    });
+    const scores = recent.map(function (story) {
+      const positive = (story.title.match(positiveTerms) || []).length;
+      const negative = (story.title.match(negativeTerms) || []).length;
+      return positive + negative ? (positive - negative) / (positive + negative) : 0;
+    });
+    return {
+      count: recent.length,
+      score: scores.length ? mean(scores) : 0,
+      earningsEvent: recent.some(function (story) { return earningsTerms.test(story.title); }),
+      macroEvent: recent.some(function (story) { return macroTerms.test(story.title); })
+    };
+  }
+
+  const company = inspect(companyStories);
+  const macro = inspect(macroStories);
+  const availableSignals = [];
+  if (company.count) {
+    availableSignals.push({ score: company.score, weight: 0.7 });
+  }
+  if (macro.count) {
+    availableSignals.push({ score: macro.score, weight: 0.3 });
+  }
+  const weightTotal = availableSignals.reduce(function (sum, item) { return sum + item.weight; }, 0);
+  const sentiment = weightTotal
+    ? availableSignals.reduce(function (sum, item) {
+      return sum + item.score * item.weight;
+    }, 0) / weightTotal
+    : 0;
+
+  return {
+    sentiment: sentiment,
+    companyHeadlineCount: company.count,
+    macroHeadlineCount: macro.count,
+    earningsEvent: company.earningsEvent,
+    macroEvent: macro.macroEvent,
+    available: Boolean(weightTotal)
+  };
 }
 
 function mean(values) {
@@ -400,7 +478,7 @@ function standardDeviation(values, average) {
   return Math.sqrt(variance);
 }
 
-function buildStockResponse(symbol, target, peerData) {
+function buildStockResponse(symbol, target, peerData, marketSignals) {
   const peerSeries = peerData.map(function (peer) {
     return {
       symbol: peer.symbol,
@@ -439,11 +517,25 @@ function buildStockResponse(symbol, target, peerData) {
   });
   const dailyMean = mean(modelReturns);
   const dailyDeviation = standardDeviation(modelReturns, dailyMean);
+  const signals = marketSignals || {
+    sentiment: 0,
+    companyHeadlineCount: 0,
+    macroHeadlineCount: 0,
+    earningsEvent: false,
+    macroEvent: false,
+    available: false
+  };
+  const eventVolatilityMultiplier = 1 +
+    (signals.earningsEvent ? 0.25 : 0) +
+    (signals.macroEvent ? 0.2 : 0);
+  const newsDailyAdjustment = signals.available ? dailyDeviation * 0.1 * signals.sentiment : 0;
+  const adjustedDailyMean = dailyMean + newsDailyAdjustment;
+  const adjustedDailyDeviation = dailyDeviation * eventVolatilityMultiplier;
   const currentPrice = target.history[target.history.length - 1].close;
   const forecast = [];
   for (let session = 1; session <= 2; session += 1) {
-    const point = currentPrice * Math.pow(1 + dailyMean, session);
-    const margin = 1.2816 * dailyDeviation * Math.sqrt(session);
+    const point = currentPrice * Math.pow(1 + adjustedDailyMean, session);
+    const margin = 1.2816 * adjustedDailyDeviation * Math.sqrt(session);
     forecast.push({
       session: session,
       price: point,
@@ -503,8 +595,19 @@ function buildStockResponse(symbol, target, peerData) {
     updatedAt: new Date().toISOString(),
     history: target.history.slice(-1300),
     forecast: forecast,
-    projectionPercent: Math.pow(1 + dailyMean, 2) - 1,
+    projectionPercent: Math.pow(1 + adjustedDailyMean, 2) - 1,
     comparables: comparableRows,
+    marketSignals: {
+      sentiment: signals.sentiment,
+      companyHeadlineCount: signals.companyHeadlineCount,
+      macroHeadlineCount: signals.macroHeadlineCount,
+      earningsEvent: signals.earningsEvent,
+      macroEvent: signals.macroEvent,
+      available: signals.available,
+      newsAdjustmentPercent: Math.pow(1 + adjustedDailyMean, 2) -
+        Math.pow(1 + dailyMean, 2),
+      eventVolatilityMultiplier: eventVolatilityMultiplier
+    },
     model: {
       returnObservations: recent.length,
       comparables: selectedPeers,
@@ -545,7 +648,18 @@ async function handleApi(request, url, env) {
       return jsonError("Comparable market history is unavailable. Try again later.", 502);
     }
     const target = results[0].value;
-    return { body: buildStockResponse(symbol, target, peerData), status: 200 };
+    const headlineResults = await Promise.allSettled([
+      fetchSymbolHeadlines(symbol),
+      fetchSearchHeadlines("Federal Reserve inflation interest rates jobs economy", 8)
+    ]);
+    const companyHeadlines = headlineResults[0].status === "fulfilled"
+      ? headlineResults[0].value
+      : [];
+    const macroHeadlines = headlineResults[1].status === "fulfilled"
+      ? headlineResults[1].value
+      : [];
+    const marketSignals = scoreHeadlineStories(companyHeadlines, macroHeadlines, Date.now());
+    return { body: buildStockResponse(symbol, target, peerData, marketSignals), status: 200 };
   }
 
   if (url.pathname === "/api/news" && request.method === "GET") {

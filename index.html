@@ -186,6 +186,28 @@
             <p class="chart-empty">A projection will appear after market data loads.</p>
           </div>
           <p id="forecast-method" class="forecast-method"></p>
+          <fieldset class="trading-assumptions">
+            <legend>Illustrative trade assumptions</legend>
+            <label>
+              <span>Order amount (market currency)</span>
+              <input id="trade-size-setting" type="number" min="1" max="100000000" step="0.01" value="1000" required>
+            </label>
+            <label>
+              <span>Commission per order (market currency)</span>
+              <input id="commission-setting" type="number" min="0" max="10000" step="0.01" value="0" required>
+            </label>
+            <label>
+              <span>Slippage per side (%)</span>
+              <input id="slippage-setting" type="number" min="0" max="10" step="0.01" value="0.1" required>
+            </label>
+            <label>
+              <span>Minimum order (market currency)</span>
+              <input id="minimum-order-setting" type="number" min="0" max="100000000" step="0.01" value="1" required>
+            </label>
+          </fieldset>
+          <p id="trade-assumptions-note" class="forecast-method">
+            Inputs use the stock's market currency. Net estimate assumes a long position held two sessions, then sold; it is not an order or personalized advice.
+          </p>
         </article>
       </section>
 
@@ -540,7 +562,15 @@
         <article class="panel method-card">
           <span class="step-number">02</span>
           <h2>Projection</h2>
-          <p>The model looks at the selected stock's recent price behavior alongside a small group of related securities. It uses those patterns to estimate a possible direction and price level for the next two trading sessions. The detailed model formula is proprietary, and historical patterns may not continue.</p>
+          <p>The Worker estimates the next two sessions with this process:</p>
+          <ol class="method-algorithm">
+            <li>Align the stock's daily closes with available comparison securities and calculate each daily percentage return.</li>
+            <li>For each day, blend 60% of the stock's return with 40% of the average return of its available peers.</li>
+            <li>Average the latest 60 blended returns (or all available observations if fewer than 60, with at least 30 required). Recent dated ticker and macro headlines get a simple positive/negative keyword score; that score can tilt the two-session estimate by up to 10% of recent return volatility.</li>
+            <li>Estimate an 80% model range using the sample standard deviation of blended returns, scaled by the square root of the forecast horizon. Recent headlines mentioning earnings or macro events widen this range by fixed heuristic multipliers. This is not a scheduled earnings calendar, and the range is not a guarantee.</li>
+            <li>For context, repeat the calculation at up to 60 earlier points and compare each two-session direction with what actually followed. This historical directional accuracy is not the chance that the current forecast will be correct.</li>
+          </ol>
+          <p>Editable trade assumptions estimate a long position's two-session result after round-trip commission and slippage and flag orders below the minimum order size. They do not change the market-price estimate or place trades. No model can reliably anticipate all news or sudden market changes, and past patterns may not continue.</p>
         </article>
         <article class="panel method-card">
           <span class="step-number">03</span>
