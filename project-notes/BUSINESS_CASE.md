@@ -36,3 +36,6 @@ To make this app run in a real deployment, I would want to have email verificati
 ## 6. Risks and ethics
 
 On the website as it currently is, there isn't much protection other than the basic one provided by Cloudflare and the hash method created by Copilot. This means that without proper encryption, passwords and other sensitive data that the user provided to the site could be at risk. With a proper deployment, you would want to have hashing or use another encription method on this data when it is being sent, so it is decrypted only when the user can see it. If this data gets breached, this could cause a huge problem for the user. Such as someone reusing passwords or a scammer getting access to your phone number and address. Another thing that could go wrong for the user would be that the prediction would be quite off from the real number, meaning that the user would put their money into a stock that would loose them money. What I did in this deployment is to state that the model could be wron and to only use it as a reference, but to still verify the data.
+
+AI use: I used Copilot to fix table formatting and ChatGPT to suggest weaknesses in my moat section. All
+reasoning and wording are my own
